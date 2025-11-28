@@ -191,13 +191,12 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         
         // Parse git status --porcelain format
         // First two characters indicate status
-        let chars: Vec<char> = line.chars().collect();
-        if chars.len() < 2 {
+        if line.len() < 2 {
             continue;
         }
 
-        let index_status = chars[0];
-        let worktree_status = chars[1];
+        let index_status = line.chars().nth(0).unwrap();
+        let worktree_status = line.chars().nth(1).unwrap();
 
         // Untracked files - handle first as they're special
         if index_status == '?' && worktree_status == '?' {
