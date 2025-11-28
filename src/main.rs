@@ -140,8 +140,42 @@ async fn main() {
             }
         }
         Some(Commands::Status { }) => {
-            let _ = enter::get_entered_workspace().unwrap();
-            println!("TODO: Check status");
+            let workspace_id = enter::get_entered_workspace().unwrap();
+            let statuses = git::get_all_repos_status(workspace_id);
+
+            // Count repositories with and without changes
+            let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();
+            let total_repos = statuses.len();
+            let clean_repos = total_repos - repos_with_changes.len();
+
+            // Print summary
+            println!("Workspace status:");
+            println!("  {} repositories total", total_repos);
+            println!("  {} clean, {} with changes", clean_repos, repos_with_changes.len());
+            println!();
+
+            // Print details for repos with changes
+            if repos_with_changes.is_empty() {
+                println!("All repositories are clean.");
+            } else {
+                println!("Repositories with changes:");
+                println!();
+                
+                for status in repos_with_changes {
+                    println!("  {} ({})", status.name, status.current_branch);
+                    
+                    if status.staged_files > 0 {
+                        println!("    {} file(s) staged for commit", status.staged_files);
+                    }
+                    if status.modified_files > 0 {
+                        println!("    {} file(s) modified", status.modified_files);
+                    }
+                    if status.untracked_files > 0 {
+                        println!("    {} untracked file(s)", status.untracked_files);
+                    }
+                    println!();
+                }
+            }
         }
         Some(Commands::Reset { }) => {
             let _ = enter::get_entered_workspace().unwrap();
