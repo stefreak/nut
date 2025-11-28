@@ -142,7 +142,29 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         .arg("--show-current")
         .output()
         .ok()?;
-    let current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    
+    if !branch_output.status.success() {
+        return None;
+    }
+    
+    let mut current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    
+    // Handle detached HEAD state
+    if current_branch.is_empty() {
+        let rev_output = std::process::Command::new("git")
+            .current_dir(repo_path)
+            .arg("rev-parse")
+            .arg("--short")
+            .arg("HEAD")
+            .output()
+            .ok()?;
+        if rev_output.status.success() {
+            let commit = String::from_utf8_lossy(&rev_output.stdout).trim().to_string();
+            current_branch = format!("(detached at {})", commit);
+        } else {
+            current_branch = "(detached)".to_string();
+        }
+    }
 
     // Get git status porcelain output
     let status_output = std::process::Command::new("git")
@@ -151,6 +173,10 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         .arg("--porcelain")
         .output()
         .ok()?;
+
+    if !status_output.status.success() {
+        return None;
+    }
 
     let status_text = String::from_utf8_lossy(&status_output.stdout);
     
@@ -173,19 +199,18 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         let index_status = chars[0];
         let worktree_status = chars[1];
 
-        // Index (staged) changes
-        if index_status != ' ' && index_status != '?' {
-            staged_files += 1;
-        }
-
-        // Worktree (unstaged) changes
-        if worktree_status != ' ' && worktree_status != '?' {
-            modified_files += 1;
-        }
-
-        // Untracked files
+        // Untracked files - handle first as they're special
         if index_status == '?' && worktree_status == '?' {
             untracked_files += 1;
+        } else {
+            // For tracked files, count if staged (index has changes)
+            if index_status != ' ' && index_status != '?' {
+                staged_files += 1;
+            }
+            // Count if modified in worktree (unstaged changes)
+            if worktree_status != ' ' && worktree_status != '?' {
+                modified_files += 1;
+            }
         }
     }
 

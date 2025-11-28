@@ -165,10 +165,10 @@ async fn main() {
                     println!("  {} ({})", status.name, status.current_branch);
                     
                     if status.staged_files > 0 {
-                        println!("    {} file(s) staged for commit", status.staged_files);
+                        println!("    {} file(s) with staged changes", status.staged_files);
                     }
                     if status.modified_files > 0 {
-                        println!("    {} file(s) modified", status.modified_files);
+                        println!("    {} file(s) with unstaged changes", status.modified_files);
                     }
                     if status.untracked_files > 0 {
                         println!("    {} untracked file(s)", status.untracked_files);
