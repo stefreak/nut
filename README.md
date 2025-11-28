@@ -51,13 +51,31 @@ Import all repositories from an organization:
 nut import --org <organization> --github-token <token>
 ```
 
+### Status command
+
+Check the status of all repositories in the workspace:
+
+```bash
+nut status
+```
+
+The status command:
+- Shows a summary of total repositories and how many have changes
+- Lists only repositories with changes (clean repos are not displayed)
+- For each changed repository, displays:
+  - Repository name and current branch
+  - Number of staged files
+  - Number of modified files
+  - Number of untracked files
+
+This makes it efficient to check the status even when working with 100+ repositories.
+
 ### Other commands
 
 - `nut cache-dir` - Print git cache directory path
 - `nut data-dir` - Print workspace data directory path
 
 #### Not implemented yet
-- `nut status` - Show workspace status
 - `nut reset` - Reset changes in workspace
 - `nut commit --message <msg>` - Commit changes
 - `nut submit [--branch <name>] [--create-pr]` - Submit changes
