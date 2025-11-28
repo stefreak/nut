@@ -3,7 +3,9 @@ mod dirs;
 
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
+use tokio::pin;
 use ulid::Ulid;
+use futures_util::stream::TryStreamExt;
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true, version, about, long_about = None)]
@@ -54,14 +56,21 @@ enum Commands {
     /// Import repositories into a workspace
     Import {
         #[arg(short, long)]
+        org: Option<String>,
+
+        #[arg(short, long)]
+        user: Option<String>,
+
+        #[arg(short, long)]
         repo: Option<String>,
 
         #[arg(short, long)]
-        org: Option<String>,
+        github_token: String
     }
 }
 
-fn main() {
+#[tokio::main(flavor = "multi_thread")]
+async fn main() {
     let cli = Cli::parse();
 
     // You can see how many times a particular flag or argument occurred
@@ -117,8 +126,6 @@ fn main() {
                     {
                         let datetime: DateTime<Utc> = ulid.datetime().into();
                         // format systemtime
-
-
                         let description = std::fs::read_to_string(entry.path().join(".nut/description")).unwrap_or("(missing description)".to_string());
                         println!("id={}, created={} – {}", ulid.to_string(), datetime.format("%d/%m/%Y %T"), description);
                     }
@@ -141,10 +148,50 @@ fn main() {
             let _ = enter::get_entered_workspace().unwrap();
             println!("TODO: Submit changes on branch: {:?}, create_pr: {}", branch, create_pr);
         }
-        Some(Commands::Import { repo, org }) => {
+        Some(Commands::Import { github_token, user, repo, org }) => {
             let _ = enter::get_entered_workspace().unwrap();
-            println!("TODO: Import into workspace from repo: {:?}, org: {:?}", repo, org);
-       }
+
+            let crab = octocrab::instance().user_access_token(github_token.clone().into_boxed_str()).unwrap();
+
+            match (user, repo, org) {
+                (Some(user), Some(repo), _) => {
+                    let repository = crab.repos(user, repo).get().await.unwrap();
+                    println!("{}", repository.full_name.unwrap());
+                }
+                (Some(user), None, _) => {
+                    let stream = crab
+                        .users(user)
+                        .repos()
+                        .send()
+                        .await
+                        .unwrap()
+                        .into_stream(&crab);
+
+                    pin!(stream);
+                    while let Some(repo) = stream.try_next().await.unwrap() {
+                        println!("{}", repo.full_name.unwrap());
+                    }
+                }
+                (_, _, Some(org)) => {
+                    let stream = crab
+                        .orgs(org)
+                        .list_repos()
+                        .send()
+                        .await
+                        .unwrap()
+                        .into_stream(&crab);
+
+                    pin!(stream);
+                    while let Some(repo) = stream.try_next().await.unwrap() {
+                        println!("{}", repo.full_name.unwrap());
+                    }
+                }
+                _ => {
+                    println!("Please provide either user and optional repo, or org");
+                    std::process::exit(1);
+                }
+            }
+        }
         None => {
         }
     }
