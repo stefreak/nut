@@ -1,8 +1,6 @@
 use crate::dirs::get_data_local_dir;
 
 pub fn enter(ulid: ulid::Ulid) {
-    println!("Entering {}", ulid.to_string());
-
     let data_local_dir = get_data_local_dir();
 
     // start shell in directory

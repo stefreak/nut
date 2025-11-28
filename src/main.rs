@@ -1,11 +1,14 @@
 mod enter;
 mod dirs;
+mod git;
 
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use tokio::pin;
 use ulid::Ulid;
 use futures_util::stream::TryStreamExt;
+
+use crate::dirs::{get_cache_dir, get_data_local_dir};
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true, version, about, long_about = None)]
@@ -66,7 +69,11 @@ enum Commands {
 
         #[arg(short, long)]
         github_token: String
-    }
+    },
+    /// Print git cache directory
+    CacheDir {},
+    /// Print workspace data directory
+    DataDir {},
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -155,8 +162,17 @@ async fn main() {
 
             match (user, repo, org) {
                 (Some(user), Some(repo), _) => {
-                    let repository = crab.repos(user, repo).get().await.unwrap();
-                    println!("{}", repository.full_name.unwrap());
+                    let repo = crab.repos(user, repo);
+                    let details = repo.get().await.unwrap();
+                    let full_name = &details.full_name.unwrap();
+                    println!("{}", full_name);
+                    let default_branch = &details.default_branch;
+                    let latest_commit = match default_branch {
+                        Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                        None => None,
+                    };
+
+                    git::clone(full_name, &latest_commit, default_branch);
                 }
                 (Some(user), None, _) => {
                     let stream = crab
@@ -168,8 +184,16 @@ async fn main() {
                         .into_stream(&crab);
 
                     pin!(stream);
-                    while let Some(repo) = stream.try_next().await.unwrap() {
-                        println!("{}", repo.full_name.unwrap());
+                    while let Some(details) = stream.try_next().await.unwrap() {
+                        let repo = crab.repos(details.owner.unwrap().login, details.name);
+                        let full_name = &details.full_name.unwrap();
+                        println!("{}", full_name);
+                        let default_branch = &details.default_branch;
+                        let latest_commit = match default_branch {
+                            Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                            None => None,
+                        };
+                        git::clone(full_name, &latest_commit, default_branch);
                     }
                 }
                 (_, _, Some(org)) => {
@@ -182,8 +206,16 @@ async fn main() {
                         .into_stream(&crab);
 
                     pin!(stream);
-                    while let Some(repo) = stream.try_next().await.unwrap() {
-                        println!("{}", repo.full_name.unwrap());
+                    while let Some(details) = stream.try_next().await.unwrap() {
+                        let repo = crab.repos(details.owner.unwrap().login, details.name);
+                        let full_name = &details.full_name.unwrap();
+                        println!("{}", full_name);
+                        let default_branch = &details.default_branch;
+                        let latest_commit = match default_branch {
+                            Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                            None => None,
+                        };
+                        git::clone(full_name, &latest_commit, default_branch);
                     }
                 }
                 _ => {
@@ -191,7 +223,13 @@ async fn main() {
                     std::process::exit(1);
                 }
             }
-        }
+        },
+        Some(Commands::CacheDir {  }) => {
+            println!("{}", get_cache_dir().to_str().unwrap())
+        },
+        Some(Commands::DataDir {  }) => {
+            println!("{}", get_data_local_dir().to_str().unwrap())
+        },
         None => {
         }
     }
