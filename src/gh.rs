@@ -19,16 +19,6 @@ impl GitProtocol {
     }
 }
 
-/// Check if the gh CLI is available
-#[allow(dead_code)]
-pub fn is_gh_available() -> bool {
-    Command::new("gh")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
-}
-
 /// Get the git protocol from gh config
 /// Returns None if gh is not available or config is not set
 pub fn get_git_protocol() -> Option<GitProtocol> {
@@ -80,9 +70,9 @@ pub fn get_git_protocol_with_fallback() -> GitProtocol {
 /// 1. Use provided token if available
 /// 2. Try to get from gh auth token
 /// 3. Return None if neither available
-pub fn get_token_with_fallback(provided_token: Option<String>) -> Result<String> {
+pub fn get_token_with_fallback(provided_token: Option<&String>) -> Result<String> {
     if let Some(token) = provided_token {
-        return Ok(token);
+        return Ok(token.clone());
     }
 
     get_auth_token().ok_or_else(|| {
@@ -124,7 +114,7 @@ mod tests {
     #[test]
     fn test_get_token_with_fallback_uses_provided_token() {
         let token = "provided_token".to_string();
-        let result = get_token_with_fallback(Some(token.clone()));
+        let result = get_token_with_fallback(Some(&token));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), token);
     }
