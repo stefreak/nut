@@ -571,11 +571,7 @@ fn test_error_already_in_workspace() {
     let workspace_id = ulid::Ulid::new();
     let workspace_path = data_dir.join(workspace_id.to_string());
     fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-    fs::write(
-        workspace_path.join(".nut/description"),
-        "Test workspace",
-    )
-    .unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
 
     // Try to create a new workspace while already in one
     let output = Command::new(TestEnv::nut_binary())

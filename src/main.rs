@@ -98,11 +98,7 @@ async fn main() -> Result<()> {
     // Configure miette to respect color settings
     if !should_use_color {
         miette::set_hook(Box::new(|_| {
-            Box::new(
-                miette::MietteHandlerOpts::new()
-                    .color(false)
-                    .build(),
-            )
+            Box::new(miette::MietteHandlerOpts::new().color(false).build())
         }))
         .into_diagnostic()?;
     }
@@ -129,9 +125,11 @@ async fn main() -> Result<()> {
             let ulid = ulid::Ulid::new();
 
             let workspace_path = data_local_dir.join(ulid.to_string()).join(".nut");
-            std::fs::create_dir_all(&workspace_path).map_err(|e| NutError::CreateDirectoryFailed {
-                path: workspace_path.clone(),
-                source: e,
+            std::fs::create_dir_all(&workspace_path).map_err(|e| {
+                NutError::CreateDirectoryFailed {
+                    path: workspace_path.clone(),
+                    source: e,
+                }
             })?;
 
             // write description file
@@ -158,12 +156,11 @@ async fn main() -> Result<()> {
         }
         Some(Commands::List {}) => {
             let data_local_dir = dirs::get_data_local_dir()?;
-            let entries = std::fs::read_dir(&data_local_dir).map_err(|e| {
-                NutError::ReadDirectoryFailed {
+            let entries =
+                std::fs::read_dir(&data_local_dir).map_err(|e| NutError::ReadDirectoryFailed {
                     path: data_local_dir.clone(),
                     source: e,
-                }
-            })?;
+                })?;
 
             // Collect all workspaces with their metadata
             let mut workspaces: Vec<(Ulid, DateTime<Utc>, String)> = Vec::new();
@@ -171,7 +168,10 @@ async fn main() -> Result<()> {
             for entry in entries {
                 let entry = entry.into_diagnostic()?;
                 if entry.file_type().into_diagnostic()?.is_dir() {
-                    let ulid_str = entry.file_name().into_string().map_err(|_| NutError::InvalidUtf8)?;
+                    let ulid_str = entry
+                        .file_name()
+                        .into_string()
+                        .map_err(|_| NutError::InvalidUtf8)?;
                     if let Ok(ulid) = Ulid::from_string(&ulid_str) {
                         let datetime: DateTime<Utc> = ulid.datetime().into();
                         let desc_path = entry.path().join(".nut/description");
@@ -298,7 +298,10 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        let repo = crab.repos(details.owner.ok_or(NutError::InvalidUtf8)?.login, details.name);
+                        let repo = crab.repos(
+                            details.owner.ok_or(NutError::InvalidUtf8)?.login,
+                            details.name,
+                        );
                         let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
                         println!("{}", full_name);
                         let default_branch = &details.default_branch;
@@ -328,7 +331,10 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        let repo = crab.repos(details.owner.ok_or(NutError::InvalidUtf8)?.login, details.name);
+                        let repo = crab.repos(
+                            details.owner.ok_or(NutError::InvalidUtf8)?.login,
+                            details.name,
+                        );
                         let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
                         println!("{}", full_name);
                         let default_branch = &details.default_branch;
@@ -353,10 +359,18 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::CacheDir {}) => {
-            println!("{}", get_cache_dir()?.to_str().ok_or(NutError::InvalidUtf8)?)
+            println!(
+                "{}",
+                get_cache_dir()?.to_str().ok_or(NutError::InvalidUtf8)?
+            )
         }
         Some(Commands::DataDir {}) => {
-            println!("{}", get_data_local_dir()?.to_str().ok_or(NutError::InvalidUtf8)?)
+            println!(
+                "{}",
+                get_data_local_dir()?
+                    .to_str()
+                    .ok_or(NutError::InvalidUtf8)?
+            )
         }
         None => {}
     }
