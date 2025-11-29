@@ -70,9 +70,9 @@ pub fn get_git_protocol_with_fallback() -> GitProtocol {
 /// 1. Use provided token if available
 /// 2. Try to get from gh auth token
 /// 3. Return None if neither available
-pub fn get_token_with_fallback(provided_token: Option<&String>) -> Result<String> {
+pub fn get_token_with_fallback(provided_token: Option<&str>) -> Result<String> {
     if let Some(token) = provided_token {
-        return Ok(token.clone());
+        return Ok(token.to_string());
     }
 
     get_auth_token().ok_or_else(|| {
@@ -113,8 +113,8 @@ mod tests {
 
     #[test]
     fn test_get_token_with_fallback_uses_provided_token() {
-        let token = "provided_token".to_string();
-        let result = get_token_with_fallback(Some(&token));
+        let token = "provided_token";
+        let result = get_token_with_fallback(Some(token));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), token);
     }

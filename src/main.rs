@@ -262,7 +262,7 @@ async fn main() -> Result<()> {
         }) => {
             let _ = enter::get_entered_workspace()?;
 
-            let token = gh::get_token_with_fallback(github_token.as_ref())?;
+            let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
             let crab = octocrab::instance()
                 .user_access_token(token.into_boxed_str())
