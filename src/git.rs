@@ -337,12 +337,11 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
     Ok(statuses)
 }
 
-/// Execute a command in each repository without using a subshell
-pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
+/// Find all git repositories in a workspace
+fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
     let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
     let mut repos = Vec::new();
 
-    // Find all git repositories
     let walker = walkdir::WalkDir::new(&workspace_dir)
         .max_depth(3)
         .into_iter();
@@ -360,6 +359,13 @@ pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
 
     // Sort repositories by name for consistent output
     repos.sort();
+
+    Ok(repos)
+}
+
+/// Execute a command in each repository without using a subshell
+pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
+    let repos = find_repositories(workspace_id)?;
 
     if repos.is_empty() {
         println!("No repositories found in workspace");
@@ -402,9 +408,6 @@ pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
 
 /// Execute a script in each repository
 pub fn apply_script(workspace_id: Ulid, script_path: &str, args: &[String]) -> Result<()> {
-    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
-    let mut repos = Vec::new();
-
     // Check if script exists and is executable
     let script = std::path::PathBuf::from(script_path);
     if !script.exists() {
@@ -429,24 +432,7 @@ pub fn apply_script(workspace_id: Ulid, script_path: &str, args: &[String]) -> R
         }
     }
 
-    // Find all git repositories
-    let walker = walkdir::WalkDir::new(&workspace_dir)
-        .max_depth(3)
-        .into_iter();
-    
-    for entry in walker
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-    {
-        if entry.file_name() == ".git"
-            && let Some(parent) = entry.path().parent()
-        {
-            repos.push(parent.to_path_buf());
-        }
-    }
-
-    // Sort repositories by name for consistent output
-    repos.sort();
+    let repos = find_repositories(workspace_id)?;
 
     if repos.is_empty() {
         println!("No repositories found in workspace");
