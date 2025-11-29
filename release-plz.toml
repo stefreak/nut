@@ -1,0 +1,12 @@
+
+[workspace]
+release_commits = "^(feat|docs|fix|perf)[(:]"
+
+[changelog]
+commit_parsers = [
+    { message = "^feat*", group = "<!-- 0 -->New features" },
+    { message = "^fix*", group = "<!-- 1 -->Bug fixes" },
+    { message = "^perf*", group = "<!-- 2 -->Performance" },
+    { message = "^docs*", group = "<!-- 3 -->Documentation" },
+    { message = "^chore*", group = "<!-- 4 -->Miscellaneous" },
+]
