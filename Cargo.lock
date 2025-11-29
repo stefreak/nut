@@ -1068,7 +1068,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nut"
+name = "nut-workspace"
 version = "0.1.0"
 dependencies = [
  "chrono",
