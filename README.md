@@ -6,7 +6,23 @@ A workspace manager for working with multiple GitHub repositories simultaneously
 
 `nut` creates isolated workspaces for organizing and managing clones of GitHub repositories. The `import` command uses a local cache reduce cloning time to a minimum.
 
+_This package is experimental and not feature complete._
+
+## Installation
+
+### Cargo
+
+[Install cargo by following the instructions in the cargo book](https://doc.rust-lang.org/cargo/getting-started/installation.html), then install the `nut-workspace` crate:
+
+```bash
+cargo install nut-workspace
+```
+
 ## Usage
+
+```bash
+nut --help
+```
 
 ### Create a workspace
 
