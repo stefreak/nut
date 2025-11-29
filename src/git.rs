@@ -17,7 +17,7 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
     let workspace_dir = dirs::get_data_local_dir().join(workspace.to_string());
     let cache_dir = dirs::get_cache_dir().join("github");
 
-    if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit)  {
+    if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
         if workspace_dir.join(full_name).exists() {
             std::env::set_current_dir(workspace_dir.join(full_name)).unwrap();
 
@@ -50,7 +50,7 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
                     let status = std::process::Command::new("git")
                         .arg("pull")
                         .status()
-                        .expect("failed to update cache repository");            
+                        .expect("failed to update cache repository");
                     if !status.success() {
                         panic!("failed to update cache repository");
                     }
@@ -116,12 +116,12 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
 
     std::env::set_current_dir(&workspace_dir.join(full_name)).unwrap();
     let status = std::process::Command::new("git")
-    .arg("remote")
-    .arg("set-url")
-    .arg("origin")
-    .arg(format!("git@github.com:{full_name}.git"))
-    .status()
-    .expect("failed to set remote url in workspace repository");
+        .arg("remote")
+        .arg("set-url")
+        .arg("origin")
+        .arg(format!("git@github.com:{full_name}.git"))
+        .status()
+        .expect("failed to set remote url in workspace repository");
     if !status.success() {
         panic!("failed to set remote url in workspace repository");
     }
@@ -142,13 +142,15 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         .arg("--show-current")
         .output()
         .ok()?;
-    
+
     if !branch_output.status.success() {
         return None;
     }
-    
-    let mut current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-    
+
+    let mut current_branch = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
+
     // Handle detached HEAD state
     if current_branch.is_empty() {
         let rev_output = std::process::Command::new("git")
@@ -159,7 +161,9 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
             .output()
             .ok()?;
         if rev_output.status.success() {
-            let commit = String::from_utf8_lossy(&rev_output.stdout).trim().to_string();
+            let commit = String::from_utf8_lossy(&rev_output.stdout)
+                .trim()
+                .to_string();
             current_branch = format!("(detached at {})", commit);
         } else {
             current_branch = "(detached)".to_string();
@@ -179,7 +183,7 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
     }
 
     let status_text = String::from_utf8_lossy(&status_output.stdout);
-    
+
     let mut modified_files = 0;
     let mut staged_files = 0;
     let mut untracked_files = 0;
@@ -188,7 +192,7 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         if line.is_empty() {
             continue;
         }
-        
+
         // Parse git status --porcelain format
         // First two characters indicate status
         if line.len() < 2 {
@@ -230,8 +234,13 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Vec<RepoStatus> {
     let workspace_dir = dirs::get_data_local_dir().join(workspace_id.to_string());
     let mut statuses = Vec::new();
 
-    let walker = walkdir::WalkDir::new(&workspace_dir).max_depth(3).into_iter();
-    for entry in walker.filter_map(|e| e.ok()).filter(|e| e.file_type().is_dir()) {
+    let walker = walkdir::WalkDir::new(&workspace_dir)
+        .max_depth(3)
+        .into_iter();
+    for entry in walker
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_dir())
+    {
         if entry.file_name() == ".git" {
             let repo_path = entry.path().parent().unwrap().to_path_buf();
             if let Some(status) = get_repo_status(&repo_path) {

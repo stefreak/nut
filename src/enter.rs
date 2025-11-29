@@ -14,8 +14,7 @@ pub fn enter(ulid: ulid::Ulid) {
         let path = std::env::var("PATH").unwrap_or("".to_string());
         let nut_binary_path = std::env::current_exe().unwrap();
         let nut_binary_dir = nut_binary_path.parent().unwrap();
-        let new_path = format!("{}:{}", nut_binary_dir.to_str().unwrap(), path
-        );
+        let new_path = format!("{}:{}", nut_binary_dir.to_str().unwrap(), path);
         std::env::set_var("PATH", new_path);
     }
 
@@ -32,7 +31,8 @@ pub fn get_entered_workspace() -> Option<ulid::Ulid> {
     let data_local_dir = get_data_local_dir();
     let current_dir = std::env::current_dir().unwrap();
     if let Ok(stripped) = current_dir.strip_prefix(&data_local_dir) {
-        let components: Vec<&std::ffi::OsStr> = stripped.components().map(|c| c.as_os_str()).collect();
+        let components: Vec<&std::ffi::OsStr> =
+            stripped.components().map(|c| c.as_os_str()).collect();
         if components.len() > 0 {
             if let Ok(ulid) = ulid::Ulid::from_string(&components[0].to_string_lossy()) {
                 return Some(ulid);
