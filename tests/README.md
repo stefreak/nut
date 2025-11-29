@@ -61,7 +61,7 @@ The following functionality is intentionally not covered by integration tests:
 - Tests use temporary directories under `/tmp/nut_test_*` to ensure isolation
 - Each test has its own unique directory based on the test name
 - The `TestEnv` struct implements `Drop` to ensure cleanup even if tests panic
-- Tests manipulate the `HOME` environment variable in an unsafe block, which is necessary to use the `directories` crate's XDG directory detection
+- The `HOME` environment variable is passed per-command using `.env()`, avoiding the need for global environment variable manipulation
 
 ## Future Improvements
 
