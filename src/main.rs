@@ -1,12 +1,12 @@
-mod enter;
 mod dirs;
+mod enter;
 mod git;
 
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
+use futures_util::stream::TryStreamExt;
 use tokio::pin;
 use ulid::Ulid;
-use futures_util::stream::TryStreamExt;
 
 use crate::dirs::{get_cache_dir, get_data_local_dir};
 
@@ -35,14 +35,11 @@ enum Commands {
         id: String,
     },
     /// List existing workspaces
-    List {
-    },
+    List {},
     /// Show status of a workspace
-    Status {
-    },
+    Status {},
     /// Reset changes in a workspace
-    Reset {
-    },
+    Reset {},
     /// Commit changes in a workspace
     Commit {
         #[arg(short, long)]
@@ -53,7 +50,7 @@ enum Commands {
         #[arg(short, long)]
         branch: Option<String>,
 
-        #[arg(default_value_t=true, short, long)]
+        #[arg(default_value_t = true, short, long)]
         create_pr: bool,
     },
     /// Import repositories into a workspace
@@ -68,7 +65,7 @@ enum Commands {
         repo: Option<String>,
 
         #[arg(short, long)]
-        github_token: String
+        github_token: String,
     },
     /// Print git cache directory
     CacheDir {},
@@ -83,7 +80,7 @@ async fn main() {
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
     match cli.debug {
-        0 => {},
+        0 => {}
         1 => println!("Debug mode is kind of on"),
         2 => println!("Debug mode is on"),
         _ => println!("Don't be crazy"),
@@ -107,9 +104,12 @@ async fn main() {
 
             // write description file
             std::fs::write(
-                data_local_dir.join(ulid.to_string()).join(".nut/description"),
+                data_local_dir
+                    .join(ulid.to_string())
+                    .join(".nut/description"),
                 description,
-            ).unwrap();
+            )
+            .unwrap();
 
             enter::enter(ulid);
         }
@@ -122,24 +122,39 @@ async fn main() {
 
             enter::enter(id.parse().unwrap());
         }
-        Some(Commands::List {  }) => {
+        Some(Commands::List {}) => {
             let data_local_dir = dirs::get_data_local_dir();
             let entries = std::fs::read_dir(data_local_dir).unwrap();
+
+            // Collect all workspaces with their metadata
+            let mut workspaces: Vec<(Ulid, DateTime<Utc>, String)> = Vec::new();
+
             for entry in entries {
                 let entry = entry.unwrap();
                 if entry.file_type().unwrap().is_dir() {
                     let ulid_str = entry.file_name().into_string().unwrap();
-                    if let Ok(ulid) = Ulid::from_string(&ulid_str)
-                    {
+                    if let Ok(ulid) = Ulid::from_string(&ulid_str) {
                         let datetime: DateTime<Utc> = ulid.datetime().into();
-                        // format systemtime
-                        let description = std::fs::read_to_string(entry.path().join(".nut/description")).unwrap_or("(missing description)".to_string());
-                        println!("id={}, created={} – {}", ulid.to_string(), datetime.format("%d/%m/%Y %T"), description);
+                        let description =
+                            std::fs::read_to_string(entry.path().join(".nut/description"))
+                                .unwrap_or("(missing description)".to_string());
+                        workspaces.push((ulid, datetime, description));
                     }
                 }
             }
+
+            // Sort by timestamp, most recent first
+            workspaces.sort_by(|a, b| b.1.cmp(&a.1));
+
+            // Display workspaces
+            for (ulid, datetime, description) in workspaces {
+                println!("{}", ulid.to_string());
+                println!("  Created: {}", datetime.format("%Y-%m-%d %H:%M:%S"));
+                println!("  {}", description);
+                println!();
+            }
         }
-        Some(Commands::Status { }) => {
+        Some(Commands::Status {}) => {
             let workspace_id = enter::get_entered_workspace().unwrap();
             let statuses = git::get_all_repos_status(workspace_id);
 
@@ -151,7 +166,11 @@ async fn main() {
             // Print summary
             println!("Workspace status:");
             println!("  {} repositories total", total_repos);
-            println!("  {} clean, {} with changes", clean_repos, repos_with_changes.len());
+            println!(
+                "  {} clean, {} with changes",
+                clean_repos,
+                repos_with_changes.len()
+            );
             println!();
 
             // Print details for repos with changes
@@ -160,15 +179,18 @@ async fn main() {
             } else {
                 println!("Repositories with changes:");
                 println!();
-                
+
                 for status in repos_with_changes {
                     println!("  {} ({})", status.name, status.current_branch);
-                    
+
                     if status.staged_files > 0 {
                         println!("    {} file(s) with staged changes", status.staged_files);
                     }
                     if status.modified_files > 0 {
-                        println!("    {} file(s) with unstaged changes", status.modified_files);
+                        println!(
+                            "    {} file(s) with unstaged changes",
+                            status.modified_files
+                        );
                     }
                     if status.untracked_files > 0 {
                         println!("    {} untracked file(s)", status.untracked_files);
@@ -177,7 +199,7 @@ async fn main() {
                 }
             }
         }
-        Some(Commands::Reset { }) => {
+        Some(Commands::Reset {}) => {
             let _ = enter::get_entered_workspace().unwrap();
             println!("TODO: Reset workspace");
         }
@@ -187,12 +209,22 @@ async fn main() {
         }
         Some(Commands::Submit { branch, create_pr }) => {
             let _ = enter::get_entered_workspace().unwrap();
-            println!("TODO: Submit changes on branch: {:?}, create_pr: {}", branch, create_pr);
+            println!(
+                "TODO: Submit changes on branch: {:?}, create_pr: {}",
+                branch, create_pr
+            );
         }
-        Some(Commands::Import { github_token, user, repo, org }) => {
+        Some(Commands::Import {
+            github_token,
+            user,
+            repo,
+            org,
+        }) => {
             let _ = enter::get_entered_workspace().unwrap();
 
-            let crab = octocrab::instance().user_access_token(github_token.clone().into_boxed_str()).unwrap();
+            let crab = octocrab::instance()
+                .user_access_token(github_token.clone().into_boxed_str())
+                .unwrap();
 
             match (user, repo, org) {
                 (Some(user), Some(repo), _) => {
@@ -202,7 +234,15 @@ async fn main() {
                     println!("{}", full_name);
                     let default_branch = &details.default_branch;
                     let latest_commit = match default_branch {
-                        Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                        Some(d) => repo
+                            .list_commits()
+                            .branch(d)
+                            .send()
+                            .await
+                            .unwrap_or_default()
+                            .take_items()
+                            .get(0)
+                            .map(|c| c.sha.clone()),
                         None => None,
                     };
 
@@ -224,7 +264,15 @@ async fn main() {
                         println!("{}", full_name);
                         let default_branch = &details.default_branch;
                         let latest_commit = match default_branch {
-                            Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                            Some(d) => repo
+                                .list_commits()
+                                .branch(d)
+                                .send()
+                                .await
+                                .unwrap_or_default()
+                                .take_items()
+                                .get(0)
+                                .map(|c| c.sha.clone()),
                             None => None,
                         };
                         git::clone(full_name, &latest_commit, default_branch);
@@ -246,7 +294,15 @@ async fn main() {
                         println!("{}", full_name);
                         let default_branch = &details.default_branch;
                         let latest_commit = match default_branch {
-                            Some(d) => repo.list_commits().branch(d).send().await.unwrap_or_default().take_items().get(0).map(|c| c.sha.clone()),
+                            Some(d) => repo
+                                .list_commits()
+                                .branch(d)
+                                .send()
+                                .await
+                                .unwrap_or_default()
+                                .take_items()
+                                .get(0)
+                                .map(|c| c.sha.clone()),
                             None => None,
                         };
                         git::clone(full_name, &latest_commit, default_branch);
@@ -257,15 +313,14 @@ async fn main() {
                     std::process::exit(1);
                 }
             }
-        },
-        Some(Commands::CacheDir {  }) => {
-            println!("{}", get_cache_dir().to_str().unwrap())
-        },
-        Some(Commands::DataDir {  }) => {
-            println!("{}", get_data_local_dir().to_str().unwrap())
-        },
-        None => {
         }
+        Some(Commands::CacheDir {}) => {
+            println!("{}", get_cache_dir().to_str().unwrap())
+        }
+        Some(Commands::DataDir {}) => {
+            println!("{}", get_data_local_dir().to_str().unwrap())
+        }
+        None => {}
     }
 
     // Continued program logic goes here...
