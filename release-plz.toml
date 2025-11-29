@@ -1,6 +1,6 @@
 
 [workspace]
-release_commits = "^(feat|docs|fix|perf|chore.deps.)[(:]"
+release_commits = "^(feat|docs|fix|perf|chore\\(deps\\))[(:]"
 
 [changelog]
 commit_parsers = [
@@ -8,5 +8,5 @@ commit_parsers = [
     { message = "^fix*", group = "<!-- 1 -->Bug fixes" },
     { message = "^perf*", group = "<!-- 2 -->Performance" },
     { message = "^docs*", group = "<!-- 3 -->Documentation" },
-    { message = "^chore.deps.", group = "<!-- 4 -->Dependencies" },
+    { message = "^chore(deps):", group = "<!-- 4 -->Dependencies" },
 ]
