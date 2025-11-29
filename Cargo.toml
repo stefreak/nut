@@ -10,6 +10,10 @@ homepage = "https://github.com/stefreak/nut"
 categories = ["command-line-utilities", "development-tools"]
 exclude = ["/tests", "/.github", "/target", ".gitignore"]
 
+[[bin]]
+name = "nut"
+path = "src/main.rs"
+
 [badges]
 # The `maintenance` table indicates the status of the maintenance of
 # the crate. This may be used by a registry, but is currently not
