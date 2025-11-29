@@ -200,7 +200,7 @@ fn test_status_empty_workspace() {
 
     // Run status command with NUT_WORKSPACE_ID set
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -246,19 +246,19 @@ fn test_status_with_git_repo() {
 
     // Initialize git repo
     Command::new("git")
-        .args(&["init"])
+        .args(["init"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to init git repo");
 
     Command::new("git")
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to set git email");
 
     Command::new("git")
-        .args(&["config", "user.name", "Test User"])
+        .args(["config", "user.name", "Test User"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to set git name");
@@ -267,20 +267,20 @@ fn test_status_with_git_repo() {
     fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
 
     Command::new("git")
-        .args(&["add", "."])
+        .args(["add", "."])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to add files");
 
     Command::new("git")
-        .args(&["commit", "-m", "Initial commit"])
+        .args(["commit", "-m", "Initial commit"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to commit");
 
     // Run status command
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -303,7 +303,7 @@ fn test_status_with_git_repo() {
     fs::write(repo_path.join("newfile.txt"), "New content\n").unwrap();
 
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -357,19 +357,19 @@ fn test_status_with_git_repo_nested() {
 
     // Initialize git repo
     Command::new("git")
-        .args(&["init"])
+        .args(["init"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to init git repo");
 
     Command::new("git")
-        .args(&["config", "user.email", "test@example.com"])
+        .args(["config", "user.email", "test@example.com"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to set git email");
 
     Command::new("git")
-        .args(&["config", "user.name", "Test User"])
+        .args(["config", "user.name", "Test User"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to set git name");
@@ -378,20 +378,20 @@ fn test_status_with_git_repo_nested() {
     fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
 
     Command::new("git")
-        .args(&["add", "."])
+        .args(["add", "."])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to add files");
 
     Command::new("git")
-        .args(&["commit", "-m", "Initial commit"])
+        .args(["commit", "-m", "Initial commit"])
         .current_dir(&repo_path)
         .output()
         .expect("Failed to commit");
 
     // Run status command
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -414,7 +414,7 @@ fn test_status_with_git_repo_nested() {
     fs::write(repo_path.join("newfile.txt"), "New content\n").unwrap();
 
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -571,15 +571,11 @@ fn test_error_already_in_workspace() {
     let workspace_id = ulid::Ulid::new();
     let workspace_path = data_dir.join(workspace_id.to_string());
     fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-    fs::write(
-        workspace_path.join(".nut/description"),
-        "Test workspace",
-    )
-    .unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
 
     // Try to create a new workspace while already in one
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["create", "--description", "Another workspace"])
+        .args(["create", "--description", "Another workspace"])
         .env("HOME", &env.temp_dir)
         .env("NUT_WORKSPACE_ID", workspace_id.to_string())
         .output()
@@ -629,7 +625,7 @@ fn test_no_color_env_var() {
 
     // Run with NO_COLOR environment variable
     let output = Command::new(TestEnv::nut_binary())
-        .args(&["status"])
+        .args(["status"])
         .env("HOME", &env.temp_dir)
         .env("NO_COLOR", "1")
         .output()

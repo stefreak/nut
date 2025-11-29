@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use ulid::Ulid;
 
-use crate::{dirs, enter};
 use crate::error::{NutError, Result};
+use crate::{dirs, enter};
 
 pub struct RepoStatus {
     pub name: String,
@@ -13,7 +13,11 @@ pub struct RepoStatus {
     pub current_branch: String,
 }
 
-pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &Option<String>) -> Result<()> {
+pub fn clone(
+    full_name: &str,
+    latest_commit: &Option<String>,
+    default_branch: &Option<String>,
+) -> Result<()> {
     let workspace: Ulid = enter::get_entered_workspace()?;
     let workspace_dir = dirs::get_data_local_dir()?.join(workspace.to_string());
     let cache_dir = dirs::get_cache_dir()?.join("github");
@@ -21,9 +25,11 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
         if workspace_dir.join(full_name).exists() {
             let workspace_repo_dir = workspace_dir.join(full_name);
-            std::env::set_current_dir(&workspace_repo_dir).map_err(|e| NutError::ChangeDirectoryFailed {
-                path: workspace_repo_dir.clone(),
-                source: e,
+            std::env::set_current_dir(&workspace_repo_dir).map_err(|e| {
+                NutError::ChangeDirectoryFailed {
+                    path: workspace_repo_dir.clone(),
+                    source: e,
+                }
             })?;
 
             // get latest commit in default branch
@@ -82,9 +88,11 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
 
         if cache_dir.join(full_name).exists() {
             let cache_repo_dir = cache_dir.join(full_name);
-            std::env::set_current_dir(&cache_repo_dir).map_err(|e| NutError::ChangeDirectoryFailed {
-                path: cache_repo_dir.clone(),
-                source: e,
+            std::env::set_current_dir(&cache_repo_dir).map_err(|e| {
+                NutError::ChangeDirectoryFailed {
+                    path: cache_repo_dir.clone(),
+                    source: e,
+                }
             })?;
 
             // get latest commit in default branch
@@ -169,9 +177,11 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
     }
 
     let workspace_repo_dir = workspace_dir.join(full_name);
-    std::env::set_current_dir(&workspace_repo_dir).map_err(|e| NutError::ChangeDirectoryFailed {
-        path: workspace_repo_dir.clone(),
-        source: e,
+    std::env::set_current_dir(&workspace_repo_dir).map_err(|e| {
+        NutError::ChangeDirectoryFailed {
+            path: workspace_repo_dir.clone(),
+            source: e,
+        }
     })?;
     let status = std::process::Command::new("git")
         .arg("remote")
@@ -265,8 +275,12 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
         }
 
         let mut chars = line.chars();
-        let Some(index_status) = chars.next() else { continue; };
-        let Some(worktree_status) = chars.next() else { continue; };
+        let Some(index_status) = chars.next() else {
+            continue;
+        };
+        let Some(worktree_status) = chars.next() else {
+            continue;
+        };
 
         // Untracked files - handle first as they're special
         if index_status == '?' && worktree_status == '?' {
@@ -307,12 +321,12 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_dir())
     {
-        if entry.file_name() == ".git" {
-            if let Some(parent) = entry.path().parent() {
-                let repo_path = parent.to_path_buf();
-                if let Some(status) = get_repo_status(&repo_path) {
-                    statuses.push(status);
-                }
+        if entry.file_name() == ".git"
+            && let Some(parent) = entry.path().parent()
+        {
+            let repo_path = parent.to_path_buf();
+            if let Some(status) = get_repo_status(&repo_path) {
+                statuses.push(status);
             }
         }
     }
