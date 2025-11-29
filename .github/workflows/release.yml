@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   # Release unpublished packages.
   release-plz-release:
@@ -17,17 +20,22 @@ jobs:
     environment:
       name: release-cargo
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
       - &checkout
         name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
       - &install-rust
         name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6d9817901c499d6b02debbb57edb38d33daa680b # stable
       - name: Run release-plz
-        uses: release-plz/action@v0.5
+        uses: release-plz/action@1efcf74dfcd6e500990dad806e286899ae384064 # v0.5.119
         with:
           command: release
         env:
@@ -45,10 +53,15 @@ jobs:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
       - *checkout
       - *install-rust
       - name: Run release-plz
-        uses: release-plz/action@v0.5
+        uses: release-plz/action@1efcf74dfcd6e500990dad806e286899ae384064 # v0.5.119
         with:
           command: release-pr
         env:
