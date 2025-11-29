@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
+#[allow(dead_code)]
 pub enum NutError {
     #[error("Already in workspace")]
     #[diagnostic(
