@@ -22,6 +22,9 @@ impl TestEnv {
         fs::create_dir_all(&temp_dir).unwrap();
         
         // Save original HOME and set new one
+        // SAFETY: In Rust edition 2024, env::set_var is unsafe because it can cause
+        // undefined behavior in multi-threaded contexts. We use it here in tests where
+        // we control the execution environment and ensure proper cleanup via Drop.
         let original_home = env::var("HOME").ok();
         unsafe {
             env::set_var("HOME", &temp_dir);
@@ -53,7 +56,9 @@ impl TestEnv {
     
     /// Get the data directory path for this test environment
     fn get_data_dir(&self) -> PathBuf {
-        // Using the same logic as in dirs.rs
+        // Manually construct the path to match what directories crate would return
+        // This is more reliable than calling ProjectDirs::from() which reads the current HOME
+        // We need this because tests run in parallel and modify HOME independently
         self.temp_dir
             .join(".local")
             .join("share")
@@ -62,7 +67,9 @@ impl TestEnv {
     
     /// Get the cache directory path for this test environment
     fn get_cache_dir(&self) -> PathBuf {
-        // Using the same logic as in dirs.rs
+        // Manually construct the path to match what directories crate would return
+        // This is more reliable than calling ProjectDirs::from() which reads the current HOME
+        // We need this because tests run in parallel and modify HOME independently
         self.temp_dir
             .join(".cache")
             .join("nut")
@@ -72,6 +79,9 @@ impl TestEnv {
 impl Drop for TestEnv {
     fn drop(&mut self) {
         // Restore original HOME
+        // SAFETY: In Rust edition 2024, env::set_var and env::remove_var are unsafe.
+        // We use them here in tests where we control the execution environment.
+        // This is necessary to properly clean up our test environment modifications.
         unsafe {
             if let Some(home) = &self.original_home {
                 env::set_var("HOME", home);
