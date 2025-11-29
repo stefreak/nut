@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use ulid::Ulid;
 
 use crate::error::{NutError, Result};
-use crate::{dirs, enter};
+use crate::{dirs, enter, gh};
 
 pub struct RepoStatus {
     pub name: String,
@@ -18,6 +18,9 @@ pub fn clone(
     latest_commit: &Option<String>,
     default_branch: &Option<String>,
 ) -> Result<()> {
+    let git_protocol = gh::get_git_protocol_with_fallback();
+    let clone_url = git_protocol.to_clone_url(full_name);
+    
     let workspace: Ulid = enter::get_entered_workspace()?;
     let workspace_dir = dirs::get_data_local_dir()?.join(workspace.to_string());
     let cache_dir = dirs::get_cache_dir()?.join("github");
@@ -132,7 +135,7 @@ pub fn clone(
             })?;
             let status = std::process::Command::new("git")
                 .arg("clone")
-                .arg(format!("git@github.com:{full_name}.git"))
+                .arg(&clone_url)
                 .arg(full_name)
                 .arg("--mirror")
                 .arg("--bare")
@@ -187,7 +190,7 @@ pub fn clone(
         .arg("remote")
         .arg("set-url")
         .arg("origin")
-        .arg(format!("git@github.com:{full_name}.git"))
+        .arg(&clone_url)
         .status()
         .map_err(|e| NutError::GitCommandFailed {
             command: "git remote set-url".to_string(),
