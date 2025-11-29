@@ -56,23 +56,22 @@ impl TestEnv {
     
     /// Get the data directory path for this test environment
     fn get_data_dir(&self) -> PathBuf {
-        // Manually construct the path to match what directories crate would return
-        // This is more reliable than calling ProjectDirs::from() which reads the current HOME
-        // We need this because tests run in parallel and modify HOME independently
-        self.temp_dir
-            .join(".local")
-            .join("share")
-            .join("nut")
+        // Run the actual nut data-dir command to get the platform-specific path
+        // This works cross-platform (Linux, macOS, Windows) using the directories crate
+        let output = self.run_nut(&["data-dir"]);
+        assert!(output.status.success(), "data-dir command should succeed");
+        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        PathBuf::from(path_str)
     }
     
     /// Get the cache directory path for this test environment
     fn get_cache_dir(&self) -> PathBuf {
-        // Manually construct the path to match what directories crate would return
-        // This is more reliable than calling ProjectDirs::from() which reads the current HOME
-        // We need this because tests run in parallel and modify HOME independently
-        self.temp_dir
-            .join(".cache")
-            .join("nut")
+        // Run the actual nut cache-dir command to get the platform-specific path
+        // This works cross-platform (Linux, macOS, Windows) using the directories crate
+        let output = self.run_nut(&["cache-dir"]);
+        assert!(output.status.success(), "cache-dir command should succeed");
+        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        PathBuf::from(path_str)
     }
 }
 
