@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/stefreak/nut/compare/v0.1.2...v0.1.3) - 2025-11-29
+
+### <!-- 0 -->New features
+
+- improves error messages and adds NO_COLOR support ([#9](https://github.com/stefreak/nut/pull/9))
+
 ## [0.1.2](https://github.com/stefreak/nut/compare/v0.1.1...v0.1.2) - 2025-11-29
 
 ### <!-- 1 -->Features
