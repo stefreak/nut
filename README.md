@@ -90,6 +90,24 @@ This makes it efficient to check the status even when working with 100+ reposito
 When importing repositories, `nut` first creates or updates a cached bare clone, then uses `git clone --local` to create fast workspace copies. Workspaces are identified by ULID timestamps.
 `nut` is smart and just knows when the cache repositories need updating.
 
+## Development
+
+### Running Tests
+
+The project includes integration tests that verify the CLI behavior:
+
+```bash
+cargo test
+```
+
+For more information about the testing strategy, see [tests/README.md](tests/README.md).
+
+### Building
+
+```bash
+cargo build --release
+```
+
 ## License
 
 See LICENSE file for details.
