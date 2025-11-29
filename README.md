@@ -4,13 +4,7 @@ A workspace manager for working with multiple GitHub repositories simultaneously
 
 ## Overview
 
-`nut` creates isolated workspaces for organizing and managing clones of GitHub repositories. It uses a local cache to optimize cloning operations and provides commands for workspace lifecycle management.
-
-## Installation
-
-```bash
-cargo build --release
-```
+`nut` creates isolated workspaces for organizing and managing clones of GitHub repositories. The `import` command uses a local cache reduce cloning time to a minimum.
 
 ## Usage
 
@@ -89,6 +83,24 @@ This makes it efficient to check the status even when working with 100+ reposito
 
 When importing repositories, `nut` first creates or updates a cached bare clone, then uses `git clone --local` to create fast workspace copies. Workspaces are identified by ULID timestamps.
 `nut` is smart and just knows when the cache repositories need updating.
+
+## Development
+
+### Running Tests
+
+The project includes integration tests that verify the CLI behavior:
+
+```bash
+cargo test
+```
+
+For more information about the testing strategy, see [tests/README.md](tests/README.md).
+
+### Building
+
+```bash
+cargo build --release
+```
 
 ## License
 
