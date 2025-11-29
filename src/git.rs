@@ -20,7 +20,7 @@ pub fn clone(
 ) -> Result<()> {
     let git_protocol = gh::get_git_protocol_with_fallback();
     let clone_url = git_protocol.to_clone_url(full_name);
-    
+
     let workspace: Ulid = enter::get_entered_workspace()?;
     let workspace_dir = dirs::get_data_local_dir()?.join(workspace.to_string());
     let cache_dir = dirs::get_cache_dir()?.join("github");

@@ -42,21 +42,14 @@ pub fn get_git_protocol() -> Option<GitProtocol> {
 /// Get GitHub token from gh auth token
 /// Returns None if gh is not available or not authenticated
 pub fn get_auth_token() -> Option<String> {
-    let output = Command::new("gh")
-        .args(["auth", "token"])
-        .output()
-        .ok()?;
+    let output = Command::new("gh").args(["auth", "token"]).output().ok()?;
 
     if !output.status.success() {
         return None;
     }
 
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if token.is_empty() {
-        None
-    } else {
-        Some(token)
-    }
+    if token.is_empty() { None } else { Some(token) }
 }
 
 /// Get the git protocol to use for cloning, with fallback logic

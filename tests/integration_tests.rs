@@ -680,4 +680,3 @@ fn test_import_without_token_or_gh() {
         stderr
     );
 }
-

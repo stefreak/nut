@@ -129,10 +129,7 @@ pub enum NutError {
     InvalidArgumentCombination,
 
     #[error("GitHub token required")]
-    #[diagnostic(
-        code(nut::github::missing_token),
-        help("{message}")
-    )]
+    #[diagnostic(code(nut::github::missing_token), help("{message}"))]
     MissingGitHubToken { message: String },
 }
 
