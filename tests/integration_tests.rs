@@ -288,3 +288,92 @@ fn test_status_with_git_repo() {
     assert!(stdout.contains("test-repo"), "status should show the repo name");
     assert!(stdout.contains("untracked file"), "status should mention untracked files");
 }
+
+#[test]
+fn test_status_with_git_repo_nested() {
+    let env = TestEnv::new("status_with_repo_nested");
+    
+    // Create a workspace with a git repository
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+    
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace with repo",
+    ).unwrap();
+    
+    // Create a simple git repository
+    let repo_path = workspace_path.join("some-org").join("test-repo");
+    fs::create_dir_all(&repo_path).unwrap();
+    
+    // Initialize git repo
+    Command::new("git")
+        .args(&["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to init git repo");
+    
+    Command::new("git")
+        .args(&["config", "user.email", "test@example.com"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git email");
+    
+    Command::new("git")
+        .args(&["config", "user.name", "Test User"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git name");
+    
+    // Create and commit a file
+    fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
+    
+    Command::new("git")
+        .args(&["add", "."])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to add files");
+    
+    Command::new("git")
+        .args(&["commit", "-m", "Initial commit"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to commit");
+    
+    // Run status command
+    let output = Command::new(TestEnv::nut_binary())
+        .args(&["status"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut status");
+    
+    assert!(output.status.success(), "status command should succeed");
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    assert!(stdout.contains("1 repositories total"), "status should show 1 repository");
+    assert!(stdout.contains("1 clean"), "status should show 1 clean repository");
+    
+    // Now make a change to test dirty repo detection
+    fs::write(repo_path.join("newfile.txt"), "New content\n").unwrap();
+    
+    let output = Command::new(TestEnv::nut_binary())
+        .args(&["status"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut status");
+    
+    assert!(output.status.success(), "status command should succeed for dirty repo");
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    assert!(stdout.contains("1 repositories total"), "status should show 1 repository");
+    assert!(stdout.contains("1 with changes"), "status should show 1 repository with changes");
+    assert!(stdout.contains("test-repo"), "status should show the repo name");
+    assert!(stdout.contains("untracked file"), "status should mention untracked files");
+}

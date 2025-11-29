@@ -225,20 +225,17 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
     })
 }
 
+// use walkdir crate to recursively find git repos (by looking for .git directories)
 pub fn get_all_repos_status(workspace_id: Ulid) -> Vec<RepoStatus> {
     let workspace_dir = dirs::get_data_local_dir().join(workspace_id.to_string());
     let mut statuses = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(&workspace_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                // Skip .nut directory
-                if path.is_dir() && path.file_name().and_then(|n| n.to_str()) != Some(".nut") {
-                    if let Some(status) = get_repo_status(&path) {
-                        statuses.push(status);
-                    }
-                }
+    let walker = walkdir::WalkDir::new(&workspace_dir).max_depth(3).into_iter();
+    for entry in walker.filter_map(|e| e.ok()).filter(|e| e.file_type().is_dir()) {
+        if entry.file_name() == ".git" {
+            let repo_path = entry.path().parent().unwrap().to_path_buf();
+            if let Some(status) = get_repo_status(&repo_path) {
+                statuses.push(status);
             }
         }
     }
