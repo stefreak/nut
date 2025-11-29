@@ -61,6 +61,62 @@ impl TestEnv {
         let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
         PathBuf::from(path_str)
     }
+
+    /// Create a workspace with a git repository for testing
+    /// Returns (workspace_id, repo_path)
+    fn create_workspace_with_repo(&self, workspace_name: &str, repo_name: &str) -> (ulid::Ulid, PathBuf) {
+        let data_dir = self.get_data_dir();
+        fs::create_dir_all(&data_dir).unwrap();
+
+        let workspace_id = ulid::Ulid::new();
+        let workspace_path = data_dir.join(workspace_id.to_string());
+        fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+        fs::write(
+            workspace_path.join(".nut/description"),
+            workspace_name,
+        )
+        .unwrap();
+
+        // Create a simple git repository
+        let repo_path = workspace_path.join(repo_name);
+        fs::create_dir_all(&repo_path).unwrap();
+
+        // Initialize git repo
+        Command::new("git")
+            .args(["init"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to init git repo");
+
+        Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to set git email");
+
+        Command::new("git")
+            .args(["config", "user.name", "Test User"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to set git name");
+
+        // Create and commit a file
+        fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
+
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to add files");
+
+        Command::new("git")
+            .args(["commit", "-m", "Initial commit"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to commit");
+
+        (workspace_id, repo_path)
+    }
 }
 
 impl Drop for TestEnv {
@@ -648,56 +704,7 @@ fn test_no_color_env_var() {
 #[test]
 fn test_apply_basic_command() {
     let env = TestEnv::new("apply_basic");
-
-    // Create a workspace with a git repository
-    let data_dir = env.get_data_dir();
-    fs::create_dir_all(&data_dir).unwrap();
-
-    let workspace_id = ulid::Ulid::new();
-    let workspace_path = data_dir.join(workspace_id.to_string());
-    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-    fs::write(
-        workspace_path.join(".nut/description"),
-        "Test workspace for apply",
-    )
-    .unwrap();
-
-    // Create a simple git repository
-    let repo_path = workspace_path.join("test-repo");
-    fs::create_dir_all(&repo_path).unwrap();
-
-    Command::new("git")
-        .args(["init"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to init git repo");
-
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git email");
-
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git name");
-
-    // Create and commit a file
-    fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
-
-    Command::new("git")
-        .args(["add", "."])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to add files");
-
-    Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to commit");
+    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Test apply command with ls
     let output = Command::new(TestEnv::nut_binary())
@@ -727,56 +734,7 @@ fn test_apply_basic_command() {
 #[test]
 fn test_apply_git_command() {
     let env = TestEnv::new("apply_git");
-
-    // Create a workspace with a git repository
-    let data_dir = env.get_data_dir();
-    fs::create_dir_all(&data_dir).unwrap();
-
-    let workspace_id = ulid::Ulid::new();
-    let workspace_path = data_dir.join(workspace_id.to_string());
-    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-    fs::write(
-        workspace_path.join(".nut/description"),
-        "Test workspace for apply",
-    )
-    .unwrap();
-
-    // Create a simple git repository
-    let repo_path = workspace_path.join("test-repo");
-    fs::create_dir_all(&repo_path).unwrap();
-
-    Command::new("git")
-        .args(["init"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to init git repo");
-
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git email");
-
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git name");
-
-    // Create and commit a file
-    fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
-
-    Command::new("git")
-        .args(["add", "."])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to add files");
-
-    Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to commit");
+    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Test apply with git command
     let output = Command::new(TestEnv::nut_binary())
@@ -802,41 +760,7 @@ fn test_apply_git_command() {
 #[test]
 fn test_apply_script_mode() {
     let env = TestEnv::new("apply_script");
-
-    // Create a workspace with a git repository
-    let data_dir = env.get_data_dir();
-    fs::create_dir_all(&data_dir).unwrap();
-
-    let workspace_id = ulid::Ulid::new();
-    let workspace_path = data_dir.join(workspace_id.to_string());
-    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-    fs::write(
-        workspace_path.join(".nut/description"),
-        "Test workspace for apply",
-    )
-    .unwrap();
-
-    // Create a simple git repository
-    let repo_path = workspace_path.join("test-repo");
-    fs::create_dir_all(&repo_path).unwrap();
-
-    Command::new("git")
-        .args(["init"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to init git repo");
-
-    Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git email");
-
-    Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(&repo_path)
-        .output()
-        .expect("Failed to set git name");
+    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Create a test script
     let script_path = env.temp_dir.join("test_script.sh");

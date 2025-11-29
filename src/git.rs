@@ -337,7 +337,16 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
     Ok(statuses)
 }
 
-/// Find all git repositories in a workspace
+/// Find all git repositories in a workspace.
+///
+/// Searches for directories containing a `.git` subdirectory within the workspace,
+/// up to a maximum depth of 3 levels. Returns a sorted list of repository paths.
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace to search
+///
+/// # Returns
+/// A vector of `PathBuf` containing the paths to all discovered repositories
 fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
     let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
     let mut repos = Vec::new();
@@ -363,7 +372,31 @@ fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
     Ok(repos)
 }
 
-/// Execute a command in each repository without using a subshell
+/// Execute a command in each repository without using a subshell.
+///
+/// Discovers all git repositories in the workspace and executes the specified command
+/// in each one. The command is executed directly (not in a shell) to avoid shell-specific
+/// behavior and security issues.
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace
+/// * `command` - A slice of strings where the first element is the command name
+///              and the remaining elements are arguments
+///
+/// # Errors
+/// Returns an error if:
+/// - The workspace directory cannot be accessed
+/// - A command fails to execute in any repository
+///
+/// # Example
+/// ```no_run
+/// # use ulid::Ulid;
+/// # fn example(workspace_id: Ulid) -> miette::Result<()> {
+/// let command = vec!["git".to_string(), "status".to_string()];
+/// apply_command(workspace_id, &command)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
     let repos = find_repositories(workspace_id)?;
 
@@ -406,7 +439,35 @@ pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Execute a script in each repository
+/// Execute a script in each repository.
+///
+/// Discovers all git repositories in the workspace and executes the specified script
+/// in each one. The script must exist and be executable (on Unix-like systems).
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace
+/// * `script_path` - Path to the script file (can be relative or absolute)
+/// * `args` - Arguments to pass to the script
+///
+/// # Errors
+/// Returns an error if:
+/// - The script does not exist
+/// - The script is not executable (on Unix-like systems)
+/// - The workspace directory cannot be accessed
+/// - The script fails to execute in any repository
+///
+/// # Platform-specific behavior
+/// On Unix-like systems, the script's execute permission bits are checked.
+/// On other platforms, this check is skipped.
+///
+/// # Example
+/// ```no_run
+/// # use ulid::Ulid;
+/// # fn example(workspace_id: Ulid) -> miette::Result<()> {
+/// apply_script(workspace_id, "scripts/deploy.sh", &vec!["--verbose".to_string()])?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn apply_script(workspace_id: Ulid, script_path: &str, args: &[String]) -> Result<()> {
     // Check if script exists and is executable
     let script = std::path::PathBuf::from(script_path);
