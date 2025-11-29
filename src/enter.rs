@@ -20,9 +20,10 @@ pub fn enter(ulid: ulid::Ulid) -> Result<()> {
         let path = std::env::var("PATH").unwrap_or("".to_string());
         let nut_binary_path = std::env::current_exe().map_err(|e| NutError::GetCurrentExecutableFailed { source: e })?;
         let nut_binary_dir = nut_binary_path.parent().ok_or_else(|| NutError::GetCurrentExecutableFailed { 
-            source: std::io::Error::new(std::io::ErrorKind::NotFound, "No parent directory")
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "Executable path has no parent directory")
         })?;
-        let new_path = format!("{}:{}", nut_binary_dir.to_str().unwrap(), path);
+        let nut_binary_dir_str = nut_binary_dir.to_str().ok_or(NutError::InvalidUtf8)?;
+        let new_path = format!("{}:{}", nut_binary_dir_str, path);
         std::env::set_var("PATH", new_path);
     }
 

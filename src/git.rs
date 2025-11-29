@@ -150,10 +150,12 @@ pub fn clone(full_name: &str, latest_commit: &Option<String>, default_branch: &O
         path: workspace_dir.clone(),
         source: e,
     })?;
+    let cache_repo_path = cache_dir.join(full_name);
+    let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
     let status = std::process::Command::new("git")
         .arg("clone")
         .arg("--local")
-        .arg(cache_dir.join(full_name).to_str().unwrap())
+        .arg(cache_dir_str)
         .arg(full_name)
         .status()
         .map_err(|e| NutError::GitCommandFailed {

@@ -89,6 +89,7 @@ async fn main() -> Result<()> {
     let should_use_color = if cli.no_color {
         false
     } else if let Ok(no_color) = std::env::var("NO_COLOR") {
+        // Per NO_COLOR spec: any non-empty value disables colors
         no_color.is_empty()
     } else {
         true
