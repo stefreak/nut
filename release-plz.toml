@@ -1,6 +1,6 @@
 
 [workspace]
-release_commits = "^(feat|docs|fix|perf|chore\\(deps\\))[(:]"
+release_commits = "^(feat|docs|fix|perf|chore\(deps\))[(:]"
 
 [changelog]
 commit_parsers = [
