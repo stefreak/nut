@@ -1,6 +1,7 @@
 mod dirs;
 mod enter;
 mod error;
+mod gh;
 mod git;
 
 use chrono::{DateTime, Utc};
@@ -72,7 +73,7 @@ enum Commands {
         repo: Option<String>,
 
         #[arg(short, long)]
-        github_token: String,
+        github_token: Option<String>,
     },
     /// Print git cache directory
     CacheDir {},
@@ -261,8 +262,10 @@ async fn main() -> Result<()> {
         }) => {
             let _ = enter::get_entered_workspace()?;
 
+            let token = gh::get_token_with_fallback(github_token.as_deref())?;
+
             let crab = octocrab::instance()
-                .user_access_token(github_token.clone().into_boxed_str())
+                .user_access_token(token.into_boxed_str())
                 .into_diagnostic()?;
 
             match (user, repo, org) {
