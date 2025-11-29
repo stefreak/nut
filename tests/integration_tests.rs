@@ -6,7 +6,6 @@ use std::process::Command;
 /// Helper struct to manage a temporary test environment
 struct TestEnv {
     temp_dir: PathBuf,
-    original_home: Option<String>,
 }
 
 impl TestEnv {
@@ -21,18 +20,8 @@ impl TestEnv {
         
         fs::create_dir_all(&temp_dir).unwrap();
         
-        // Save original HOME and set new one
-        // SAFETY: In Rust edition 2024, env::set_var is unsafe because it can cause
-        // undefined behavior in multi-threaded contexts. We use it here in tests where
-        // we control the execution environment and ensure proper cleanup via Drop.
-        let original_home = env::var("HOME").ok();
-        unsafe {
-            env::set_var("HOME", &temp_dir);
-        }
-        
         TestEnv {
             temp_dir,
-            original_home,
         }
     }
     
@@ -78,18 +67,6 @@ impl TestEnv {
 
 impl Drop for TestEnv {
     fn drop(&mut self) {
-        // Restore original HOME
-        // SAFETY: In Rust edition 2024, env::set_var and env::remove_var are unsafe.
-        // We use them here in tests where we control the execution environment.
-        // This is necessary to properly clean up our test environment modifications.
-        unsafe {
-            if let Some(home) = &self.original_home {
-                env::set_var("HOME", home);
-            } else {
-                env::remove_var("HOME");
-            }
-        }
-        
         // Clean up temp directory
         if self.temp_dir.exists() {
             fs::remove_dir_all(&self.temp_dir).ok();
