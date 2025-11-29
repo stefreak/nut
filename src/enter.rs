@@ -57,10 +57,10 @@ pub fn get_entered_workspace() -> Result<ulid::Ulid> {
     if let Ok(stripped) = current_dir.strip_prefix(&data_local_dir) {
         let components: Vec<&std::ffi::OsStr> =
             stripped.components().map(|c| c.as_os_str()).collect();
-        if components.len() > 0 {
-            if let Ok(ulid) = ulid::Ulid::from_string(&components[0].to_string_lossy()) {
-                return Ok(ulid);
-            }
+        if !components.is_empty()
+            && let Ok(ulid) = ulid::Ulid::from_string(&components[0].to_string_lossy())
+        {
+            return Ok(ulid);
         }
     }
 

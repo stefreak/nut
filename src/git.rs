@@ -321,12 +321,10 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_dir())
     {
-        if entry.file_name() == ".git" {
-            if let Some(parent) = entry.path().parent() {
-                let repo_path = parent.to_path_buf();
-                if let Some(status) = get_repo_status(&repo_path) {
-                    statuses.push(status);
-                }
+        if entry.file_name() == ".git" && let Some(parent) = entry.path().parent() {
+            let repo_path = parent.to_path_buf();
+            if let Some(status) = get_repo_status(&repo_path) {
+                statuses.push(status);
             }
         }
     }

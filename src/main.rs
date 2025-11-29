@@ -280,7 +280,7 @@ async fn main() -> Result<()> {
                             .await
                             .unwrap_or_default()
                             .take_items()
-                            .get(0)
+                            .first()
                             .map(|c| c.sha.clone()),
                         None => None,
                     };
@@ -313,7 +313,7 @@ async fn main() -> Result<()> {
                                 .await
                                 .unwrap_or_default()
                                 .take_items()
-                                .get(0)
+                                .first()
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
@@ -346,7 +346,7 @@ async fn main() -> Result<()> {
                                 .await
                                 .unwrap_or_default()
                                 .take_items()
-                                .get(0)
+                                .first()
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
