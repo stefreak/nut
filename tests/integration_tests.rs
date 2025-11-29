@@ -511,3 +511,140 @@ fn test_list_workspace_ordering() {
         "Newer workspace should appear before older workspace"
     );
 }
+
+#[test]
+fn test_error_not_in_workspace() {
+    let env = TestEnv::new("error_not_in_workspace");
+
+    // Run status command without being in a workspace
+    let output = env.run_nut(&["status"]);
+
+    assert!(
+        !output.status.success(),
+        "status command should fail when not in a workspace"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("Not in a workspace"),
+        "Error message should indicate not in workspace"
+    );
+    assert!(
+        stderr.contains("nut::workspace::not_entered"),
+        "Error should have correct error code"
+    );
+}
+
+#[test]
+fn test_error_invalid_workspace_id() {
+    let env = TestEnv::new("error_invalid_id");
+
+    // Try to enter a workspace with an invalid ID
+    let output = env.run_nut(&["enter", "invalid-workspace-id"]);
+
+    assert!(
+        !output.status.success(),
+        "enter command should fail with invalid workspace ID"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("Invalid workspace ID"),
+        "Error message should indicate invalid workspace ID"
+    );
+    assert!(
+        stderr.contains("nut::workspace::invalid_id"),
+        "Error should have correct error code"
+    );
+}
+
+#[test]
+fn test_error_already_in_workspace() {
+    let env = TestEnv::new("error_already_in_workspace");
+
+    // Create a workspace first
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace",
+    )
+    .unwrap();
+
+    // Try to create a new workspace while already in one
+    let output = Command::new(TestEnv::nut_binary())
+        .args(&["create", "--description", "Another workspace"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut create");
+
+    assert!(
+        !output.status.success(),
+        "create command should fail when already in a workspace"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("Already in workspace"),
+        "Error message should indicate already in workspace"
+    );
+    assert!(
+        stderr.contains("nut::workspace::already_entered"),
+        "Error should have correct error code"
+    );
+}
+
+#[test]
+fn test_no_color_flag() {
+    let env = TestEnv::new("no_color_flag");
+
+    // Run with --no-color flag (should still show error, just without colors)
+    let output = env.run_nut(&["--no-color", "status"]);
+
+    assert!(
+        !output.status.success(),
+        "status command should fail when not in a workspace"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Should contain the error message but miette will respect the no-color setting
+    assert!(
+        stderr.contains("Not in a workspace"),
+        "Error message should be present with --no-color"
+    );
+}
+
+#[test]
+fn test_no_color_env_var() {
+    let env = TestEnv::new("no_color_env");
+
+    // Run with NO_COLOR environment variable
+    let output = Command::new(TestEnv::nut_binary())
+        .args(&["status"])
+        .env("HOME", &env.temp_dir)
+        .env("NO_COLOR", "1")
+        .output()
+        .expect("Failed to execute nut status");
+
+    assert!(
+        !output.status.success(),
+        "status command should fail when not in a workspace"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Should contain the error message but miette will respect the NO_COLOR env var
+    assert!(
+        stderr.contains("Not in a workspace"),
+        "Error message should be present with NO_COLOR"
+    );
+}
