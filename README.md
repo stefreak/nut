@@ -69,17 +69,6 @@ Check the status of all repositories in the workspace:
 nut status
 ```
 
-The status command:
-- Shows a summary of total repositories and how many have changes
-- Lists only repositories with changes (clean repos are not displayed)
-- For each changed repository, displays:
-  - Repository name and current branch
-  - Number of staged files
-  - Number of modified files
-  - Number of untracked files
-
-This makes it efficient to check the status even when working with 100+ repositories.
-
 ### Other commands
 
 - `nut cache-dir` - Print git cache directory path
