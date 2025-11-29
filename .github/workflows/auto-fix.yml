@@ -55,7 +55,7 @@ jobs:
       
       - name: Run cargo fmt
         run: |
-          # Format all Rust files, excluding markdown files
+          # Format all Rust source files (markdown files are not touched by cargo fmt)
           cargo fmt --all
         continue-on-error: true
       
