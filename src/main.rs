@@ -235,16 +235,16 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Apply { script, command }) => {
             let workspace_id = enter::get_entered_workspace()?;
-            
+
             // Handle script mode
             if let Some(script_path) = script {
-                git::apply_script(workspace_id, &script_path, command)?;
+                git::apply_script(workspace_id, script_path, command)?;
             } else {
                 // Direct command mode
                 if command.is_empty() {
                     return Err(NutError::ApplyMissingCommand.into());
                 }
-                
+
                 git::apply_command(workspace_id, command)?;
             }
         }

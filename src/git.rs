@@ -311,23 +311,12 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
 pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
-    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+    let repos = find_repositories(workspace_id)?;
     let mut statuses = Vec::new();
 
-    let walker = walkdir::WalkDir::new(&workspace_dir)
-        .max_depth(3)
-        .into_iter();
-    for entry in walker
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-    {
-        if entry.file_name() == ".git"
-            && let Some(parent) = entry.path().parent()
-        {
-            let repo_path = parent.to_path_buf();
-            if let Some(status) = get_repo_status(&repo_path) {
-                statuses.push(status);
-            }
+    for repo_path in repos {
+        if let Some(status) = get_repo_status(&repo_path) {
+            statuses.push(status);
         }
     }
 
@@ -354,7 +343,7 @@ fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
     let walker = walkdir::WalkDir::new(&workspace_dir)
         .max_depth(3)
         .into_iter();
-    
+
     for entry in walker
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_dir())
@@ -381,7 +370,7 @@ fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
 /// # Arguments
 /// * `workspace_id` - The ULID of the workspace
 /// * `command` - A slice of strings where the first element is the command name
-///              and the remaining elements are arguments
+///   and the remaining elements are arguments
 ///
 /// # Errors
 /// Returns an error if:

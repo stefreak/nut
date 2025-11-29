@@ -64,18 +64,18 @@ impl TestEnv {
 
     /// Create a workspace with a git repository for testing
     /// Returns (workspace_id, repo_path)
-    fn create_workspace_with_repo(&self, workspace_name: &str, repo_name: &str) -> (ulid::Ulid, PathBuf) {
+    fn create_workspace_with_repo(
+        &self,
+        workspace_name: &str,
+        repo_name: &str,
+    ) -> (ulid::Ulid, PathBuf) {
         let data_dir = self.get_data_dir();
         fs::create_dir_all(&data_dir).unwrap();
 
         let workspace_id = ulid::Ulid::new();
         let workspace_path = data_dir.join(workspace_id.to_string());
         fs::create_dir_all(workspace_path.join(".nut")).unwrap();
-        fs::write(
-            workspace_path.join(".nut/description"),
-            workspace_name,
-        )
-        .unwrap();
+        fs::write(workspace_path.join(".nut/description"), workspace_name).unwrap();
 
         // Create a simple git repository
         let repo_path = workspace_path.join(repo_name);
@@ -704,7 +704,8 @@ fn test_no_color_env_var() {
 #[test]
 fn test_apply_basic_command() {
     let env = TestEnv::new("apply_basic");
-    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
+    let (workspace_id, _repo_path) =
+        env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Test apply command with ls
     let output = Command::new(TestEnv::nut_binary())
@@ -734,7 +735,8 @@ fn test_apply_basic_command() {
 #[test]
 fn test_apply_git_command() {
     let env = TestEnv::new("apply_git");
-    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
+    let (workspace_id, _repo_path) =
+        env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Test apply with git command
     let output = Command::new(TestEnv::nut_binary())
@@ -760,7 +762,8 @@ fn test_apply_git_command() {
 #[test]
 fn test_apply_script_mode() {
     let env = TestEnv::new("apply_script");
-    let (workspace_id, _repo_path) = env.create_workspace_with_repo("Test workspace for apply", "test-repo");
+    let (workspace_id, _repo_path) =
+        env.create_workspace_with_repo("Test workspace for apply", "test-repo");
 
     // Create a test script
     let script_path = env.temp_dir.join("test_script.sh");
