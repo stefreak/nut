@@ -264,8 +264,9 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
             continue;
         }
 
-        let index_status = line.chars().nth(0).unwrap();
-        let worktree_status = line.chars().nth(1).unwrap();
+        let mut chars = line.chars();
+        let Some(index_status) = chars.next() else { continue; };
+        let Some(worktree_status) = chars.next() else { continue; };
 
         // Untracked files - handle first as they're special
         if index_status == '?' && worktree_status == '?' {
@@ -307,9 +308,11 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
         .filter(|e| e.file_type().is_dir())
     {
         if entry.file_name() == ".git" {
-            let repo_path = entry.path().parent().unwrap().to_path_buf();
-            if let Some(status) = get_repo_status(&repo_path) {
-                statuses.push(status);
+            if let Some(parent) = entry.path().parent() {
+                let repo_path = parent.to_path_buf();
+                if let Some(status) = get_repo_status(&repo_path) {
+                    statuses.push(status);
+                }
             }
         }
     }
