@@ -1,0 +1,74 @@
+name: Auto-fix Clippy and Formatting
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [ready_for_review]
+
+jobs:
+  auto-fix:
+    name: Auto-fix clippy and formatting issues
+    runs-on: ubuntu-latest
+    # Only run if PR is not from a fork (can't push to forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6d9817901c499d6b02debbb57edb38d33daa680b # stable
+        with:
+          components: clippy, rustfmt
+      
+      - name: Cache cargo registry
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run clippy with auto-fix
+        run: cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
+        continue-on-error: true
+      
+      - name: Run cargo fmt
+        run: |
+          # Format all Rust files, excluding markdown files
+          cargo fmt --all
+        continue-on-error: true
+      
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code || echo "has_changes=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and push changes
+        if: steps.git-check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: apply clippy and formatting fixes"
+          git push
