@@ -644,3 +644,403 @@ fn test_no_color_env_var() {
         "Error message should be present with NO_COLOR"
     );
 }
+
+#[test]
+fn test_apply_basic_command() {
+    let env = TestEnv::new("apply_basic");
+
+    // Create a workspace with a git repository
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace for apply",
+    )
+    .unwrap();
+
+    // Create a simple git repository
+    let repo_path = workspace_path.join("test-repo");
+    fs::create_dir_all(&repo_path).unwrap();
+
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to init git repo");
+
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git email");
+
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git name");
+
+    // Create and commit a file
+    fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
+
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to add files");
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to commit");
+
+    // Test apply command with ls
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--", "ls", "-la"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        output.status.success(),
+        "apply command should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("==> test-repo <=="),
+        "Output should show repository name"
+    );
+    assert!(
+        stdout.contains("README.md"),
+        "Output should show files from ls command"
+    );
+}
+
+#[test]
+fn test_apply_git_command() {
+    let env = TestEnv::new("apply_git");
+
+    // Create a workspace with a git repository
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace for apply",
+    )
+    .unwrap();
+
+    // Create a simple git repository
+    let repo_path = workspace_path.join("test-repo");
+    fs::create_dir_all(&repo_path).unwrap();
+
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to init git repo");
+
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git email");
+
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git name");
+
+    // Create and commit a file
+    fs::write(repo_path.join("README.md"), "# Test Repo\n").unwrap();
+
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to add files");
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to commit");
+
+    // Test apply with git command
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--", "git", "status", "--short"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        output.status.success(),
+        "apply command should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("==> test-repo <=="),
+        "Output should show repository name"
+    );
+}
+
+#[test]
+fn test_apply_script_mode() {
+    let env = TestEnv::new("apply_script");
+
+    // Create a workspace with a git repository
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace for apply",
+    )
+    .unwrap();
+
+    // Create a simple git repository
+    let repo_path = workspace_path.join("test-repo");
+    fs::create_dir_all(&repo_path).unwrap();
+
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to init git repo");
+
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git email");
+
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("Failed to set git name");
+
+    // Create a test script
+    let script_path = env.temp_dir.join("test_script.sh");
+    fs::write(&script_path, "#!/bin/bash\necho 'Hello from script'\nls\n").unwrap();
+
+    // Make script executable on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&script_path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script_path, perms).unwrap();
+    }
+
+    // Test apply with script
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--script", script_path.to_str().unwrap()])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        output.status.success(),
+        "apply with script should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("==> test-repo <=="),
+        "Output should show repository name"
+    );
+    assert!(
+        stdout.contains("Hello from script"),
+        "Output should show script output"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn test_apply_script_not_executable() {
+    let env = TestEnv::new("apply_script_not_exec");
+
+    // Create a workspace
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
+
+    // Create a non-executable script
+    let script_path = env.temp_dir.join("non_exec_script.sh");
+    fs::write(&script_path, "#!/bin/bash\necho 'test'\n").unwrap();
+    // Don't make it executable
+
+    // Test apply with non-executable script
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--script", script_path.to_str().unwrap()])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        !output.status.success(),
+        "apply should fail with non-executable script"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not executable"),
+        "Error should mention script is not executable"
+    );
+}
+
+#[test]
+fn test_apply_script_not_found() {
+    let env = TestEnv::new("apply_script_not_found");
+
+    // Create a workspace
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
+
+    // Test apply with non-existent script
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--script", "/nonexistent/script.sh"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        !output.status.success(),
+        "apply should fail with non-existent script"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("not executable"),
+        "Error should mention script not found or not executable"
+    );
+}
+
+#[test]
+fn test_apply_no_command() {
+    let env = TestEnv::new("apply_no_command");
+
+    // Create a workspace
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
+
+    // Test apply without command or script
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        !output.status.success(),
+        "apply should fail without command or script"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("No command provided") || stderr.contains("missing_command"),
+        "Error should mention missing command"
+    );
+}
+
+#[test]
+fn test_apply_multiple_repos() {
+    let env = TestEnv::new("apply_multi_repos");
+
+    // Create a workspace with multiple git repositories
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(
+        workspace_path.join(".nut/description"),
+        "Test workspace with multiple repos",
+    )
+    .unwrap();
+
+    // Create first repo
+    let repo1_path = workspace_path.join("repo-1");
+    fs::create_dir_all(&repo1_path).unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo1_path)
+        .output()
+        .expect("Failed to init git repo 1");
+
+    // Create second repo
+    let repo2_path = workspace_path.join("repo-2");
+    fs::create_dir_all(&repo2_path).unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo2_path)
+        .output()
+        .expect("Failed to init git repo 2");
+
+    // Test apply command with echo
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["apply", "--", "pwd"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .output()
+        .expect("Failed to execute nut apply");
+
+    assert!(
+        output.status.success(),
+        "apply command should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("==> repo-1 <=="),
+        "Output should show first repository name"
+    );
+    assert!(
+        stdout.contains("==> repo-2 <=="),
+        "Output should show second repository name"
+    );
+    assert!(
+        stdout.contains("repo-1") && stdout.contains("repo-2"),
+        "Output should include both repo paths"
+    );
+}

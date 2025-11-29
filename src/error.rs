@@ -127,6 +127,28 @@ pub enum NutError {
         help("Use --user <username> [--repo <repository>] or --org <organization>")
     )]
     InvalidArgumentCombination,
+
+    #[error("No command provided for apply")]
+    #[diagnostic(
+        code(nut::apply::missing_command),
+        help("Use 'nut apply -- <command>' or 'nut apply --script <path>'")
+    )]
+    ApplyMissingCommand,
+
+    #[error("Script not found or not executable: {path}")]
+    #[diagnostic(
+        code(nut::apply::script_not_executable),
+        help("Make sure the script exists and is executable (chmod +x {path})")
+    )]
+    ScriptNotExecutable { path: String },
+
+    #[error("Command execution failed in repository: {repo}")]
+    #[diagnostic(code(nut::apply::command_failed))]
+    CommandFailed {
+        repo: String,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 pub type Result<T> = miette::Result<T, NutError>;

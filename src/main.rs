@@ -45,20 +45,15 @@ enum Commands {
     List {},
     /// Show status of a workspace
     Status {},
-    /// Reset changes in a workspace
-    Reset {},
-    /// Commit changes in a workspace
-    Commit {
+    /// Run a command in each repository
+    Apply {
+        /// Path to an executable script to run
         #[arg(short, long)]
-        message: String,
-    },
-    /// Submit changes in a workspace
-    Submit {
-        #[arg(short, long)]
-        branch: Option<String>,
+        script: Option<String>,
 
-        #[arg(default_value_t = true, short, long)]
-        create_pr: bool,
+        /// Command and arguments to run (must come after --)
+        #[arg(trailing_var_arg = true, required = false)]
+        command: Vec<String>,
     },
     /// Import repositories into a workspace
     Import {
@@ -238,20 +233,20 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Some(Commands::Reset {}) => {
-            let _ = enter::get_entered_workspace()?;
-            println!("TODO: Reset workspace");
-        }
-        Some(Commands::Commit { message }) => {
-            let _ = enter::get_entered_workspace()?;
-            println!("TODO: Commit changes with message: {}", message);
-        }
-        Some(Commands::Submit { branch, create_pr }) => {
-            let _ = enter::get_entered_workspace()?;
-            println!(
-                "TODO: Submit changes on branch: {:?}, create_pr: {}",
-                branch, create_pr
-            );
+        Some(Commands::Apply { script, command }) => {
+            let workspace_id = enter::get_entered_workspace()?;
+            
+            // Handle script mode
+            if let Some(script_path) = script {
+                git::apply_script(workspace_id, &script_path, command)?;
+            } else {
+                // Direct command mode
+                if command.is_empty() {
+                    return Err(NutError::ApplyMissingCommand.into());
+                }
+                
+                git::apply_command(workspace_id, command)?;
+            }
         }
         Some(Commands::Import {
             github_token,

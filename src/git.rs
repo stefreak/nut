@@ -336,3 +336,150 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
 
     Ok(statuses)
 }
+
+/// Execute a command in each repository without using a subshell
+pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
+    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+    let mut repos = Vec::new();
+
+    // Find all git repositories
+    let walker = walkdir::WalkDir::new(&workspace_dir)
+        .max_depth(3)
+        .into_iter();
+    
+    for entry in walker
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_dir())
+    {
+        if entry.file_name() == ".git"
+            && let Some(parent) = entry.path().parent()
+        {
+            repos.push(parent.to_path_buf());
+        }
+    }
+
+    // Sort repositories by name for consistent output
+    repos.sort();
+
+    if repos.is_empty() {
+        println!("No repositories found in workspace");
+        return Ok(());
+    }
+
+    // Execute command in each repository
+    let command_name = &command[0];
+    let args = &command[1..];
+
+    for repo_path in repos {
+        let repo_name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        println!("==> {} <==", repo_name);
+
+        let status = std::process::Command::new(command_name)
+            .args(args)
+            .current_dir(&repo_path)
+            .status()
+            .map_err(|e| NutError::CommandFailed {
+                repo: repo_name.to_string(),
+                source: e,
+            })?;
+
+        if !status.success() {
+            eprintln!(
+                "Command failed in repository {} with exit code: {:?}",
+                repo_name,
+                status.code()
+            );
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+/// Execute a script in each repository
+pub fn apply_script(workspace_id: Ulid, script_path: &str, args: &[String]) -> Result<()> {
+    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+    let mut repos = Vec::new();
+
+    // Check if script exists and is executable
+    let script = std::path::PathBuf::from(script_path);
+    if !script.exists() {
+        return Err(NutError::ScriptNotExecutable {
+            path: script_path.to_string(),
+        });
+    }
+
+    // Check if script is executable on Unix-like systems
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = std::fs::metadata(&script).map_err(|e| NutError::ReadFileFailed {
+            path: script.clone(),
+            source: e,
+        })?;
+        let permissions = metadata.permissions();
+        if permissions.mode() & 0o111 == 0 {
+            return Err(NutError::ScriptNotExecutable {
+                path: script_path.to_string(),
+            });
+        }
+    }
+
+    // Find all git repositories
+    let walker = walkdir::WalkDir::new(&workspace_dir)
+        .max_depth(3)
+        .into_iter();
+    
+    for entry in walker
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_dir())
+    {
+        if entry.file_name() == ".git"
+            && let Some(parent) = entry.path().parent()
+        {
+            repos.push(parent.to_path_buf());
+        }
+    }
+
+    // Sort repositories by name for consistent output
+    repos.sort();
+
+    if repos.is_empty() {
+        println!("No repositories found in workspace");
+        return Ok(());
+    }
+
+    // Execute script in each repository
+    for repo_path in repos {
+        let repo_name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        println!("==> {} <==", repo_name);
+
+        let status = std::process::Command::new(&script)
+            .args(args)
+            .current_dir(&repo_path)
+            .status()
+            .map_err(|e| NutError::CommandFailed {
+                repo: repo_name.to_string(),
+                source: e,
+            })?;
+
+        if !status.success() {
+            eprintln!(
+                "Script failed in repository {} with exit code: {:?}",
+                repo_name,
+                status.code()
+            );
+        }
+        println!();
+    }
+
+    Ok(())
+}
