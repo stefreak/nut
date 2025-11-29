@@ -65,6 +65,7 @@ impl TestEnv {
     }
     
     /// Get the cache directory path for this test environment
+    #[allow(dead_code)]
     fn get_cache_dir(&self) -> PathBuf {
         // Run the actual nut cache-dir command to get the platform-specific path
         // This works cross-platform (Linux, macOS, Windows) using the directories crate
@@ -105,13 +106,18 @@ fn test_cache_dir_command() {
     assert!(output.status.success(), "cache-dir command should succeed");
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let expected_path = env.get_cache_dir();
+    let path_str = stdout.trim();
     
-    assert_eq!(
-        stdout.trim(),
-        expected_path.to_str().unwrap(),
-        "cache-dir should output the correct path"
-    );
+    // Verify the output is a valid path
+    assert!(!path_str.is_empty(), "cache-dir should output a path");
+    
+    // Verify it's under the test HOME directory
+    assert!(path_str.starts_with(env.temp_dir.to_str().unwrap()), 
+        "cache-dir path should be under the test HOME directory");
+    
+    // Verify it contains "nut" in the path (the project name)
+    assert!(path_str.contains("nut"), 
+        "cache-dir path should contain 'nut' directory");
 }
 
 #[test]
@@ -123,13 +129,18 @@ fn test_data_dir_command() {
     assert!(output.status.success(), "data-dir command should succeed");
     
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let expected_path = env.get_data_dir();
+    let path_str = stdout.trim();
     
-    assert_eq!(
-        stdout.trim(),
-        expected_path.to_str().unwrap(),
-        "data-dir should output the correct path"
-    );
+    // Verify the output is a valid path
+    assert!(!path_str.is_empty(), "data-dir should output a path");
+    
+    // Verify it's under the test HOME directory
+    assert!(path_str.starts_with(env.temp_dir.to_str().unwrap()), 
+        "data-dir path should be under the test HOME directory");
+    
+    // Verify it contains "nut" in the path (the project name)
+    assert!(path_str.contains("nut"), 
+        "data-dir path should contain 'nut' directory");
 }
 
 #[test]
