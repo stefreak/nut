@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### <!-- 0 -->New features
 
 - [**breaking**] only determine current workspace based on current directory or explicit option
-- replace reset/commit/submit with unified apply command ([#14](https://github.com/stefreak/nut/pull/14))
-- integrate gh CLI for protocol config and token auto-discovery ([#15](https://github.com/stefreak/nut/pull/15))
+- introduce `apply` command for running commands in all repositories in a workspace ([#14](https://github.com/stefreak/nut/pull/14))
+- integrate official GitHub (`gh`) CLI for protocol config and token auto-discovery ([#15](https://github.com/stefreak/nut/pull/15))
 
 ### <!-- 1 -->Bug fixes
 
