@@ -821,15 +821,11 @@ fn test_workspace_arg_takes_precedence_over_active_workspace() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let returned_path = stdout.trim();
+    let returned_path = PathBuf::from(stdout.trim());
 
     // Should return workspace2's path, not workspace1's
-    assert!(
-        returned_path.contains(&workspace2.id.to_string()),
-        "workspace-dir should return workspace2 path, got: {returned_path}"
-    );
-    assert!(
-        !returned_path.contains(&workspace1.id.to_string()),
-        "workspace-dir should not return workspace1 path, got: {returned_path}"
+    assert_eq!(
+        returned_path, workspace2.path,
+        "workspace-dir should return workspace2 path"
     );
 }
