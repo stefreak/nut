@@ -24,10 +24,6 @@ struct Cli {
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
 
-    /// Disable colored output
-    #[arg(long)]
-    no_color: bool,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -202,31 +198,12 @@ async fn process_repo(
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Set up miette colors based on NO_COLOR environment variable and --no-color flag
-    // NO_COLOR takes precedence unless explicitly overridden by command-line flags
-    let should_use_color = if cli.no_color {
-        false
-    } else if let Ok(no_color) = std::env::var("NO_COLOR") {
-        // Per NO_COLOR spec: any non-empty value disables colors
-        no_color.is_empty()
-    } else {
-        true
-    };
-
-    // Configure miette to respect color settings
-    if !should_use_color {
-        miette::set_hook(Box::new(|_| {
-            Box::new(miette::MietteHandlerOpts::new().color(false).build())
-        }))
-        .into_diagnostic()?;
-    } else {
-        // Install the fancy error handler with default theme
-        miette::set_hook(Box::new(|_| {
-            Box::new(
-                miette::GraphicalReportHandler::new().with_theme(miette::GraphicalTheme::default()),
-            )
-        }))?;
-    }
+    // Install the fancy error handler with default theme
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            miette::GraphicalReportHandler::new().with_theme(miette::GraphicalTheme::default()),
+        )
+    }))?;
 
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences

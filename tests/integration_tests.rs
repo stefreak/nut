@@ -468,53 +468,6 @@ fn test_error_already_in_workspace() {
 }
 
 #[test]
-fn test_no_color_flag() {
-    let env = TestEnv::new("no_color_flag");
-
-    // Run with --no-color flag (should still show error, just without colors)
-    let output = env.run_nut(&["--no-color", "status"], None);
-
-    assert!(
-        !output.status.success(),
-        "status command should fail when not in a workspace"
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    // Should contain the error message but miette will respect the no-color setting
-    assert!(
-        stderr.contains("Not in a workspace"),
-        "Error message should be present with --no-color, got:\n{stderr}"
-    );
-}
-
-#[test]
-fn test_no_color_env_var() {
-    let env = TestEnv::new("no_color_env");
-
-    // Run with NO_COLOR environment variable
-    let output = Command::new(TestEnv::nut_binary())
-        .args(["status"])
-        .env("HOME", &env.temp_dir)
-        .env("NO_COLOR", "1")
-        .output()
-        .expect("Failed to execute nut status");
-
-    assert!(
-        !output.status.success(),
-        "status command should fail when not in a workspace"
-    );
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    // Should contain the error message but miette will respect the NO_COLOR env var
-    assert!(
-        stderr.contains("Not in a workspace"),
-        "Error message should be present with NO_COLOR, got:\n{stderr}"
-    );
-}
-
-#[test]
 fn test_apply_basic_command() {
     let env = TestEnv::new("apply_basic");
     let workspace = env.create_workspace("Test workspace for apply");
