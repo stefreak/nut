@@ -971,3 +971,39 @@ fn test_apply_multiple_repos() {
         "Output should include both repo paths"
     );
 }
+
+#[test]
+fn test_import_without_token_or_gh() {
+    let env = TestEnv::new("import_no_token");
+
+    // Create a workspace first
+    let data_dir = env.get_data_dir();
+    fs::create_dir_all(&data_dir).unwrap();
+
+    let workspace_id = ulid::Ulid::new();
+    let workspace_path = data_dir.join(workspace_id.to_string());
+    fs::create_dir_all(workspace_path.join(".nut")).unwrap();
+    fs::write(workspace_path.join(".nut/description"), "Test workspace").unwrap();
+
+    // Try to import without providing a token and with PATH that doesn't include gh
+    let output = Command::new(TestEnv::nut_binary())
+        .args(["import", "--user", "testuser", "--repo", "testrepo"])
+        .env("HOME", &env.temp_dir)
+        .env("NUT_WORKSPACE_ID", workspace_id.to_string())
+        .env("PATH", "") // Empty PATH to ensure gh is not found
+        .output()
+        .expect("Failed to execute nut import");
+
+    assert!(
+        !output.status.success(),
+        "import command should fail when no token provided and gh not available"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("GitHub token required") || stderr.contains("No GitHub token provided"),
+        "Error message should indicate token is required. Got: {}",
+        stderr
+    );
+}

@@ -149,6 +149,9 @@ pub enum NutError {
         #[source]
         source: std::io::Error,
     },
+    #[error("GitHub token required")]
+    #[diagnostic(code(nut::github::missing_token), help("{message}"))]
+    MissingGitHubToken { message: String },
 }
 
 pub type Result<T> = miette::Result<T, NutError>;
