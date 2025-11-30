@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
+use futures_util::stream::{self, StreamExt};
 use miette::IntoDiagnostic;
 
 pub struct RepoStatus {
@@ -13,6 +14,12 @@ pub struct RepoStatus {
     pub staged_files: usize,
     pub untracked_files: usize,
     pub current_branch: String,
+}
+
+pub struct CloneInfo {
+    pub full_name: String,
+    pub latest_commit: Option<String>,
+    pub default_branch: Option<String>,
 }
 
 pub fn clone(
@@ -184,6 +191,52 @@ pub fn clone(
         return Err(NutError::GitOperationFailed {
             operation: "set remote url in workspace repository".to_string(),
         });
+    }
+
+    Ok(())
+}
+
+/// Clone multiple repositories in parallel with a concurrency limit.
+///
+/// This function takes a list of repositories and clones them in parallel,
+/// with a maximum number of concurrent clone operations controlled by `parallel_count`.
+pub async fn clone_parallel(
+    workspace_dir: PathBuf,
+    repos: Vec<CloneInfo>,
+    parallel_count: usize,
+) -> Result<()> {
+    // Create a stream of clone tasks
+    let clone_tasks = stream::iter(repos).map(move |repo_info| {
+        let workspace_dir = workspace_dir.clone();
+        async move {
+            let full_name = repo_info.full_name.clone();
+            // Clone is a blocking operation, so we run it in a blocking task
+            let result = tokio::task::spawn_blocking(move || {
+                clone(
+                    &workspace_dir,
+                    &repo_info.full_name,
+                    &repo_info.latest_commit,
+                    &repo_info.default_branch,
+                )
+            })
+            .await;
+
+            // Handle the JoinError
+            match result {
+                Ok(clone_result) => clone_result,
+                Err(_) => Err(NutError::GitOperationFailed {
+                    operation: format!("clone task for {}", full_name),
+                }),
+            }
+        }
+    });
+
+    // Execute tasks with limited concurrency
+    let results: Vec<Result<()>> = clone_tasks.buffer_unordered(parallel_count).collect().await;
+
+    // Check if any clones failed
+    for result in results {
+        result?;
     }
 
     Ok(())

@@ -87,6 +87,10 @@ enum Commands {
 
         #[arg(short, long)]
         github_token: Option<String>,
+
+        /// Number of repositories to clone in parallel
+        #[arg(long, default_value = "4")]
+        parallel: usize,
     },
     /// Print git cache directory
     CacheDir {},
@@ -326,6 +330,7 @@ async fn main() -> Result<()> {
             user,
             repo,
             org,
+            parallel,
         }) => {
             let workspace = get_workspace(workspace)?;
 
@@ -335,14 +340,17 @@ async fn main() -> Result<()> {
                 .user_access_token(token.into_boxed_str())
                 .into_diagnostic()?;
 
+            // Collect all repositories to clone
+            let mut repos_to_clone: Vec<git::CloneInfo> = Vec::new();
+
             match (user, repo, org) {
                 (Some(user), Some(repo), _) => {
                     let repo = crab.repos(user, repo);
                     let details = repo.get().await.into_diagnostic()?;
-                    let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
+                    let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
                     println!("{}", full_name);
-                    let default_branch = &details.default_branch;
-                    let latest_commit = match default_branch {
+                    let default_branch = details.default_branch.clone();
+                    let latest_commit = match &default_branch {
                         Some(d) => repo
                             .list_commits()
                             .branch(d)
@@ -355,7 +363,11 @@ async fn main() -> Result<()> {
                         None => None,
                     };
 
-                    git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
+                    repos_to_clone.push(git::CloneInfo {
+                        full_name,
+                        latest_commit,
+                        default_branch,
+                    });
                 }
                 (Some(user), None, _) => {
                     let stream = crab
@@ -372,10 +384,10 @@ async fn main() -> Result<()> {
                             details.owner.ok_or(NutError::InvalidUtf8)?.login,
                             details.name,
                         );
-                        let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
+                        let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
                         println!("{}", full_name);
-                        let default_branch = &details.default_branch;
-                        let latest_commit = match default_branch {
+                        let default_branch = details.default_branch.clone();
+                        let latest_commit = match &default_branch {
                             Some(d) => repo
                                 .list_commits()
                                 .branch(d)
@@ -387,7 +399,12 @@ async fn main() -> Result<()> {
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
-                        git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
+
+                        repos_to_clone.push(git::CloneInfo {
+                            full_name,
+                            latest_commit,
+                            default_branch,
+                        });
                     }
                 }
                 (_, _, Some(org)) => {
@@ -405,10 +422,10 @@ async fn main() -> Result<()> {
                             details.owner.ok_or(NutError::InvalidUtf8)?.login,
                             details.name,
                         );
-                        let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
+                        let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
                         println!("{}", full_name);
-                        let default_branch = &details.default_branch;
-                        let latest_commit = match default_branch {
+                        let default_branch = details.default_branch.clone();
+                        let latest_commit = match &default_branch {
                             Some(d) => repo
                                 .list_commits()
                                 .branch(d)
@@ -420,13 +437,21 @@ async fn main() -> Result<()> {
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
-                        git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
+
+                        repos_to_clone.push(git::CloneInfo {
+                            full_name,
+                            latest_commit,
+                            default_branch,
+                        });
                     }
                 }
                 _ => {
                     return Err(NutError::InvalidArgumentCombination.into());
                 }
             }
+
+            // Clone all repositories in parallel
+            git::clone_parallel(workspace.path, repos_to_clone, *parallel).await?;
         }
         Some(Commands::CacheDir {}) => {
             write_path_to_stdout(get_cache_dir()?)?;
