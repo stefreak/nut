@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/stefreak/nut/compare/v0.2.1...v0.2.2) - 2025-11-30
+
+### <!-- 1 -->Bug fixes
+
+- *(import)* allow combining `--org` and `--repo`
+
+### <!-- 4 -->Miscellaneous
+
+- satisfy cargo fmt
+
+### Refactor
+
+- remove unnecessary NO_COLOR code
+
 ## [0.2.1](https://github.com/stefreak/nut/compare/v0.2.0...v0.2.1) - 2025-11-30
 
 ### <!-- 0 -->New features
