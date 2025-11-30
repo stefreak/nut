@@ -13,10 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *(import)* allow combining `--org` and `--repo`
 
-### <!-- 4 -->Miscellaneous
-
-- satisfy cargo fmt
-
 ### Refactor
 
 - remove unnecessary NO_COLOR code
