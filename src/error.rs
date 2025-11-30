@@ -135,10 +135,14 @@ pub enum NutError {
     #[diagnostic(code(nut::git::invalid_utf8))]
     InvalidUtf8,
 
-    #[error("Please provide either user and optional repo, or org and optional repo. --user and --org cannot be combined.")]
+    #[error(
+        "Please provide either user and optional repo, or org and optional repo. --user and --org cannot be combined."
+    )]
     #[diagnostic(
         code(nut::args::invalid_combination),
-        help("Use --user <username> [--repo <repository>] or --org <organization> [--repo <repository>] ")
+        help(
+            "Use --user <username> [--repo <repository>] or --org <organization> [--repo <repository>] "
+        )
     )]
     InvalidArgumentCombination,
 
