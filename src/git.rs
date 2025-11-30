@@ -314,23 +314,12 @@ pub fn get_repo_status(repo_path: &PathBuf) -> Option<RepoStatus> {
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
 pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
-    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+    let repos = find_repositories(workspace_id)?;
     let mut statuses = Vec::new();
 
-    let walker = walkdir::WalkDir::new(&workspace_dir)
-        .max_depth(3)
-        .into_iter();
-    for entry in walker
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-    {
-        if entry.file_name() == ".git"
-            && let Some(parent) = entry.path().parent()
-        {
-            let repo_path = parent.to_path_buf();
-            if let Some(status) = get_repo_status(&repo_path) {
-                statuses.push(status);
-            }
+    for repo_path in repos {
+        if let Some(status) = get_repo_status(&repo_path) {
+            statuses.push(status);
         }
     }
 
@@ -338,4 +327,198 @@ pub fn get_all_repos_status(workspace_id: Ulid) -> Result<Vec<RepoStatus>> {
     statuses.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(statuses)
+}
+
+/// Find all git repositories in a workspace.
+///
+/// Searches for directories containing a `.git` subdirectory within the workspace,
+/// up to a maximum depth of 3 levels. Returns a sorted list of repository paths.
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace to search
+///
+/// # Returns
+/// A vector of `PathBuf` containing the paths to all discovered repositories
+fn find_repositories(workspace_id: Ulid) -> Result<Vec<PathBuf>> {
+    let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+    let mut repos = Vec::new();
+
+    let walker = walkdir::WalkDir::new(&workspace_dir)
+        .max_depth(3)
+        .into_iter();
+
+    for entry in walker
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_dir())
+    {
+        if entry.file_name() == ".git"
+            && let Some(parent) = entry.path().parent()
+        {
+            repos.push(parent.to_path_buf());
+        }
+    }
+
+    // Sort repositories by name for consistent output
+    repos.sort();
+
+    Ok(repos)
+}
+
+/// Execute a command in each repository without using a subshell.
+///
+/// Discovers all git repositories in the workspace and executes the specified command
+/// in each one. The command is executed directly (not in a shell) to avoid shell-specific
+/// behavior and security issues.
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace
+/// * `command` - A slice of strings where the first element is the command name
+///   and the remaining elements are arguments
+///
+/// # Errors
+/// Returns an error if:
+/// - The workspace directory cannot be accessed
+/// - A command fails to execute in any repository
+///
+/// # Example
+/// ```no_run
+/// # use ulid::Ulid;
+/// # fn example(workspace_id: Ulid) -> miette::Result<()> {
+/// let command = vec!["git".to_string(), "status".to_string()];
+/// apply_command(workspace_id, &command)?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn apply_command(workspace_id: Ulid, command: &[String]) -> Result<()> {
+    let repos = find_repositories(workspace_id)?;
+
+    if repos.is_empty() {
+        println!("No repositories found in workspace");
+        return Ok(());
+    }
+
+    // Execute command in each repository
+    let command_name = &command[0];
+    let args = &command[1..];
+
+    for repo_path in repos {
+        let repo_name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        println!("==> {} <==", repo_name);
+
+        let status = std::process::Command::new(command_name)
+            .args(args)
+            .current_dir(&repo_path)
+            .status()
+            .map_err(|e| NutError::CommandFailed {
+                repo: repo_name.to_string(),
+                source: e,
+            })?;
+
+        if !status.success() {
+            eprintln!(
+                "Command failed in repository {} with exit code: {:?}",
+                repo_name,
+                status.code()
+            );
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+/// Execute a script in each repository.
+///
+/// Discovers all git repositories in the workspace and executes the specified script
+/// in each one. The script must exist and be executable (on Unix-like systems).
+///
+/// # Arguments
+/// * `workspace_id` - The ULID of the workspace
+/// * `script_path` - Path to the script file (can be relative or absolute)
+/// * `args` - Arguments to pass to the script
+///
+/// # Errors
+/// Returns an error if:
+/// - The script does not exist
+/// - The script is not executable (on Unix-like systems)
+/// - The workspace directory cannot be accessed
+/// - The script fails to execute in any repository
+///
+/// # Platform-specific behavior
+/// On Unix-like systems, the script's execute permission bits are checked.
+/// On other platforms, this check is skipped.
+///
+/// # Example
+/// ```no_run
+/// # use ulid::Ulid;
+/// # fn example(workspace_id: Ulid) -> miette::Result<()> {
+/// apply_script(workspace_id, "scripts/deploy.sh", &vec!["--verbose".to_string()])?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn apply_script(workspace_id: Ulid, script_path: &str, args: &[String]) -> Result<()> {
+    // Check if script exists and is executable
+    let script = std::path::PathBuf::from(script_path);
+    if !script.exists() {
+        return Err(NutError::ScriptNotExecutable {
+            path: script_path.to_string(),
+        });
+    }
+
+    // Check if script is executable on Unix-like systems
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = std::fs::metadata(&script).map_err(|e| NutError::ReadFileFailed {
+            path: script.clone(),
+            source: e,
+        })?;
+        let permissions = metadata.permissions();
+        if permissions.mode() & 0o111 == 0 {
+            return Err(NutError::ScriptNotExecutable {
+                path: script_path.to_string(),
+            });
+        }
+    }
+
+    let repos = find_repositories(workspace_id)?;
+
+    if repos.is_empty() {
+        println!("No repositories found in workspace");
+        return Ok(());
+    }
+
+    // Execute script in each repository
+    for repo_path in repos {
+        let repo_name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        println!("==> {} <==", repo_name);
+
+        let status = std::process::Command::new(&script)
+            .args(args)
+            .current_dir(&repo_path)
+            .status()
+            .map_err(|e| NutError::CommandFailed {
+                repo: repo_name.to_string(),
+                source: e,
+            })?;
+
+        if !status.success() {
+            eprintln!(
+                "Script failed in repository {} with exit code: {:?}",
+                repo_name,
+                status.code()
+            );
+        }
+        println!();
+    }
+
+    Ok(())
 }

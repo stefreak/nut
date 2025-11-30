@@ -69,15 +69,34 @@ Check the status of all repositories in the workspace:
 nut status
 ```
 
+### Apply command
+
+Run a command across all repositories in the workspace:
+
+```bash
+nut apply -- git commit -m "fix: foo bar"
+```
+
+The `--` separator is required when your command contains flags to avoid ambiguity with nut's own options.
+
+You can also run a script in each repository:
+
+```bash
+nut apply --script path/to/script.sh
+```
+
+Scripts must be executable (use `chmod +x script.sh` to make them executable).
+
+You can pass arguments to scripts after `--`:
+
+```bash
+nut apply --script path/to/script.sh -- arg1 arg2
+```
+
 ### Other commands
 
 - `nut cache-dir` - Print git cache directory path
 - `nut data-dir` - Print workspace data directory path
-
-#### Not implemented yet
-- `nut reset` - Reset changes in workspace
-- `nut commit --message <msg>` - Commit changes
-- `nut submit [--branch <name>] [--create-pr]` - Submit changes
 
 ## How it works
 
