@@ -89,8 +89,8 @@ enum Commands {
         github_token: Option<String>,
 
         /// Number of repositories to clone in parallel
-        #[arg(long, default_value = "4")]
-        parallel: usize,
+        #[arg(long, default_value = "4", value_parser = clap::value_parser!(u8).range(1..))]
+        parallel: u8,
     },
     /// Print git cache directory
     CacheDir {},
@@ -451,7 +451,7 @@ async fn main() -> Result<()> {
             }
 
             // Clone all repositories in parallel
-            git::clone_parallel(workspace.path, repos_to_clone, *parallel).await?;
+            git::clone_parallel(workspace.path, repos_to_clone, *parallel as usize).await?;
         }
         Some(Commands::CacheDir {}) => {
             write_path_to_stdout(get_cache_dir()?)?;

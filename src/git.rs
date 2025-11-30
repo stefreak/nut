@@ -205,6 +205,13 @@ pub async fn clone_parallel(
     repos: Vec<CloneInfo>,
     parallel_count: usize,
 ) -> Result<()> {
+    // Validate parallel_count
+    if parallel_count == 0 {
+        return Err(NutError::GitOperationFailed {
+            operation: "parallel_count must be greater than 0".to_string(),
+        });
+    }
+
     // Create a stream of clone tasks
     let clone_tasks = stream::iter(repos).map(move |repo_info| {
         let workspace_dir = workspace_dir.clone();
@@ -224,8 +231,8 @@ pub async fn clone_parallel(
             // Handle the JoinError
             match result {
                 Ok(clone_result) => clone_result,
-                Err(_) => Err(NutError::GitOperationFailed {
-                    operation: format!("clone task for {}", full_name),
+                Err(join_error) => Err(NutError::GitOperationFailed {
+                    operation: format!("clone task for {} failed: {}", full_name, join_error),
                 }),
             }
         }

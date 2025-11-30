@@ -806,4 +806,3 @@ fn test_import_parallel_option() {
         stderr
     );
 }
-
