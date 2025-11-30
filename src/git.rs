@@ -208,7 +208,7 @@ pub async fn clone_parallel(
     // Validate parallel_count
     if parallel_count == 0 {
         return Err(NutError::GitOperationFailed {
-            operation: "parallel_count must be greater than 0".to_string(),
+            operation: "invalid parallel_count: must be greater than 0".to_string(),
         });
     }
 
