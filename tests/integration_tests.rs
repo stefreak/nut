@@ -33,7 +33,11 @@ impl TestEnv {
 
         fs::create_dir_all(&temp_dir).unwrap();
 
-        TestEnv { temp_dir }
+        TestEnv {
+            temp_dir: temp_dir
+                .canonicalize()
+                .expect("Failed to canonicalize tmp dir"),
+        }
     }
 
     /// Get the path to the nut binary
@@ -45,13 +49,28 @@ impl TestEnv {
         path
     }
 
+    fn nut_working_directory(&self, workspace_id: Option<ulid::Ulid>) -> PathBuf {
+        let working_directory = match workspace_id {
+            Some(id) => self.get_data_dir().join(id.to_string()),
+            None => self.temp_dir.clone(),
+        }
+        // this makes sure that commands work even when not in workspace root or $HOME
+        .join("random_working_directory");
+
+        // ensure working directory exists
+        fs::create_dir_all(&working_directory).unwrap();
+
+        working_directory
+    }
+
     /// Execute nut command with given arguments
     fn run_nut(&self, args: &[&str], workspace_id: Option<ulid::Ulid>) -> std::process::Output {
+        let working_directory = self.nut_working_directory(workspace_id);
+
         Command::new(Self::nut_binary())
             .args(args)
-            .current_dir(&self.temp_dir)
+            .current_dir(&working_directory)
             .env("HOME", &self.temp_dir)
-            .env("NUT_WORKSPACE_ID", workspace_id.map(|id| id.to_string()).unwrap_or("".to_string()))
             .output()
             .expect("Failed to execute nut command")
     }
@@ -78,10 +97,7 @@ impl TestEnv {
     }
 
     /// Create a workspace with a git repository for testing
-    fn create_workspace(
-        &self,
-        description: &str,
-    ) -> TestWorkspace {
+    fn create_workspace(&self, description: &str) -> TestWorkspace {
         let data_dir = self.get_data_dir();
         fs::create_dir_all(&data_dir).unwrap();
 
@@ -97,12 +113,7 @@ impl TestEnv {
     }
 
     /// Create a workspace with a git repository for testing
-    fn create_repo(
-        &self,
-        workspace: &TestWorkspace,
-        org_name: &str,
-        repo_name: &str,
-    ) -> TestRepo {
+    fn create_repo(&self, workspace: &TestWorkspace, org_name: &str, repo_name: &str) -> TestRepo {
         let repo_path_relative = PathBuf::from(org_name).join(repo_name);
         let repo_path = workspace.path.join(&repo_path_relative);
 
@@ -262,10 +273,8 @@ fn test_create_workspace_simple() {
 fn test_status_empty_workspace() {
     let env = TestEnv::new("status_empty");
 
-    // Create an empty workspace
     let workspace = env.create_workspace("Test workspace for status");
 
-    // Run status command with NUT_WORKSPACE_ID set
     let output = env.run_nut(&["status"], Some(workspace.id));
 
     assert!(
@@ -436,7 +445,10 @@ fn test_error_already_in_workspace() {
     let workspace = env.create_workspace("Test workspace");
 
     // Try to create a new workspace while already in one
-    let output = env.run_nut(&["create", "--description", "Another workspace"], Some(workspace.id));
+    let output = env.run_nut(
+        &["create", "--description", "Another workspace"],
+        Some(workspace.id),
+    );
 
     assert!(
         !output.status.success(),
@@ -535,7 +547,10 @@ fn test_apply_git_command() {
     env.create_repo(&workspace, "test-org", "test-repo");
 
     // Test apply command with ls
-    let output = env.run_nut(&["apply", "--", "git", "status", "--short"], Some(workspace.id));
+    let output = env.run_nut(
+        &["apply", "--", "git", "status", "--short"],
+        Some(workspace.id),
+    );
 
     assert!(
         output.status.success(),
@@ -556,8 +571,10 @@ fn test_apply_script_mode() {
     let workspace = env.create_workspace("Test workspace for apply");
     env.create_repo(&workspace, "test-org", "test-repo");
 
+    let working_directory = env.nut_working_directory(Some(workspace.id));
+
     // Create a test script
-    let script_path = env.temp_dir.join("test_script.sh");
+    let script_path = working_directory.join("test_script.sh");
     fs::write(&script_path, "#!/bin/bash\necho 'Hello from script'\nls\n").unwrap();
 
     // Make script executable on Unix
@@ -571,7 +588,11 @@ fn test_apply_script_mode() {
 
     // Test apply with script
     let output = env.run_nut(
-        &["apply", "--script", script_path.file_name().unwrap().to_str().unwrap()],
+        &[
+            "apply",
+            "--script",
+            script_path.file_name().unwrap().to_str().unwrap(),
+        ],
         Some(workspace.id),
     );
 
@@ -600,14 +621,21 @@ fn test_apply_script_not_executable() {
     // Create a workspace
     let workspace = env.create_workspace("Test workspace");
     env.create_repo(&workspace, "test-org", "test-repo");
-    
+
+    let working_directory = env.nut_working_directory(Some(workspace.id));
+
     // Create a non-executable script
     // NOTE: The Script is not executable in this test case.
-    let script_path = env.temp_dir.join("non_exec_script.sh");
+    let script_path = working_directory.join("non_exec_script.sh");
     fs::write(&script_path, "#!/bin/bash\necho 'test'\n").unwrap();
 
     // Test apply with non-executable script
-    let output = env.run_nut(&["apply", "--script", script_path.file_name().unwrap().to_str().unwrap()],
+    let output = env.run_nut(
+        &[
+            "apply",
+            "--script",
+            script_path.file_name().unwrap().to_str().unwrap(),
+        ],
         Some(workspace.id),
     );
     assert!(
@@ -628,9 +656,14 @@ fn test_apply_script_not_found() {
 
     let workspace = env.create_workspace("Test workspace");
     env.create_repo(&workspace, "test-org", "test-repo");
-    
+
     // Test apply with non-executable script
-    let output = env.run_nut(&["apply", "--script", "relative/path/script_does_not_exist.sh"],
+    let output = env.run_nut(
+        &[
+            "apply",
+            "--script",
+            "relative/path/script_does_not_exist.sh",
+        ],
         Some(workspace.id),
     );
 
@@ -656,7 +689,6 @@ fn test_apply_script_not_found() {
         stderr.contains("help: Make sure the script path is correct and accessible"),
         "Error should provide help suggestion, got:\n{stderr}"
     );
-
 }
 
 #[test]
@@ -685,7 +717,7 @@ fn test_apply_multiple_repos() {
     let env = TestEnv::new("apply_multi_repos");
 
     let workspace = env.create_workspace("Test workspace with multiple repos");
-    
+
     env.create_repo(&workspace, "org", "repo-1");
     env.create_repo(&workspace, "org", "repo-2");
 
@@ -717,10 +749,13 @@ fn test_apply_multiple_repos() {
 fn test_import_without_token_or_gh() {
     let env = TestEnv::new("import_no_token");
 
-    let workspace = env.create_workspace("Test workspace for import");  
-    
+    let workspace = env.create_workspace("Test workspace for import");
+
     // Try to import without providing a token and with PATH that doesn't include gh
-    let output = env.run_nut(&["import", "--user", "testuser", "--repo", "testrepo"], Some(workspace.id));
+    let output = env.run_nut(
+        &["import", "--user", "testuser", "--repo", "testrepo"],
+        Some(workspace.id),
+    );
 
     assert!(
         !output.status.success(),

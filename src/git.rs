@@ -1,11 +1,10 @@
 use std::ffi::{OsStr, OsString};
 use std::os::unix::process::ExitStatusExt;
-use std::path::PathBuf;
-use ulid::Ulid;
+use std::path::{Path, PathBuf};
 
-use miette::{IntoDiagnostic};
 use crate::error::{NutError, Result};
-use crate::{dirs, enter, gh};
+use crate::{dirs, gh};
+use miette::IntoDiagnostic;
 
 pub struct RepoStatus {
     pub path_relative: OsString,
@@ -17,6 +16,7 @@ pub struct RepoStatus {
 }
 
 pub fn clone(
+    workspace_dir: &PathBuf,
     full_name: &str,
     latest_commit: &Option<String>,
     default_branch: &Option<String>,
@@ -24,8 +24,6 @@ pub fn clone(
     let git_protocol = gh::get_git_protocol_with_fallback();
     let clone_url = git_protocol.to_clone_url(full_name);
 
-    let workspace: Ulid = enter::get_entered_workspace()?;
-    let workspace_dir = dirs::get_data_local_dir()?.join(workspace.to_string());
     let cache_dir = dirs::get_cache_dir()?.join("github");
 
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
@@ -154,7 +152,7 @@ pub fn clone(
     let cache_repo_path = cache_dir.join(full_name);
     let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
     let status = std::process::Command::new("git")
-        .current_dir(&workspace_dir)
+        .current_dir(workspace_dir)
         .arg("clone")
         .arg("--local")
         .arg(cache_dir_str)
@@ -191,7 +189,7 @@ pub fn clone(
     Ok(())
 }
 
-pub fn get_repo_status(workspace_dir: &PathBuf, repo_path_relative: &PathBuf) -> Option<RepoStatus> {
+pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Option<RepoStatus> {
     let abs_path = workspace_dir.join(repo_path_relative);
 
     // Check if the path is a git repository
@@ -319,16 +317,10 @@ pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> 
 ///
 /// Searches for directories containing a `.git` subdirectory within the workspace,
 /// up to a maximum depth of 3 levels. Returns a sorted list of repository paths.
-///
-/// # Arguments
-/// * `workspace_id` - The ULID of the workspace to search
-///
-/// # Returns
-/// A vector of `PathBuf` containing the paths to all discovered repositories relative to the workspace root.
 fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
     let mut repos = Vec::new();
 
-    let walker = walkdir::WalkDir::new(&workspace_dir)
+    let walker = walkdir::WalkDir::new(workspace_dir)
         .max_depth(3)
         .into_iter();
 
@@ -340,7 +332,7 @@ fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
             && let Some(parent) = entry.path().parent()
         {
             // push relative path from workspace_dir
-            let relative_path = parent.strip_prefix(&workspace_dir).expect("failed to strip prefix - is repo in the workspace directory? This is a bug in nut, please report it on GitHub.");
+            let relative_path = parent.strip_prefix(workspace_dir).expect("failed to strip prefix - is repo in the workspace directory? This is a bug in nut, please report it on GitHub.");
             repos.push(relative_path.to_path_buf());
         }
     }
@@ -372,7 +364,7 @@ pub fn apply_command(workspace_dir: &PathBuf, command: Vec<&OsStr>) -> Result<()
 
         let status = std::process::Command::new(command_name)
             .args(args)
-            .current_dir(&workspace_dir.join(&repo_path_relative))
+            .current_dir(workspace_dir.join(&repo_path_relative))
             .status()
             .map_err(|e| NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
@@ -383,17 +375,15 @@ pub fn apply_command(workspace_dir: &PathBuf, command: Vec<&OsStr>) -> Result<()
             // render the error using miette
             let error: miette::Result<()> = Err(NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
-                source: std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    if let Some(code) = status.code() {
-                        format!("Command exited with status code {}", code)
-                    } else if let Some(signal) = status.signal() {
-                        format!("Command terminated by signal {}", signal)
-                    } else {
-                        "Command terminated for unknown reason".to_string()
-                    },
-                ),
-            }).into_diagnostic();
+                source: std::io::Error::other(if let Some(code) = status.code() {
+                    format!("Command exited with status code {}", code)
+                } else if let Some(signal) = status.signal() {
+                    format!("Command terminated by signal {}", signal)
+                } else {
+                    "Command terminated for unknown reason".to_string()
+                }),
+            })
+            .into_diagnostic();
 
             // this will automatically render fancy miette errors due to global hook in main.rs
             eprintln!();

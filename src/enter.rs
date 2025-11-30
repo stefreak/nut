@@ -27,7 +27,6 @@ pub fn enter(ulid: ulid::Ulid) -> Result<()> {
 
     std::process::Command::new(shell)
         .current_dir(&workspace_dir)
-        .env("NUT_WORKSPACE_ID", ulid.to_string())
         .env("PATH", new_path)
         .status()
         .map_err(|e| NutError::ShellSpawnFailed { source: e })?;
@@ -36,18 +35,12 @@ pub fn enter(ulid: ulid::Ulid) -> Result<()> {
 }
 
 pub fn get_entered_workspace() -> Result<ulid::Ulid> {
-    if let Ok(current_workspace) = std::env::var("NUT_WORKSPACE_ID") && current_workspace != "" {
-        return current_workspace
-            .parse()
-            .map_err(|e| NutError::InvalidWorkspaceId {
-                id: current_workspace,
-                source: e,
-            });
-    }
     // if in the workspace directory
     let data_local_dir = get_data_local_dir()?;
-    let current_dir =
-        std::env::current_dir().map_err(|e| NutError::GetCurrentDirectoryFailed { source: e })?;
+    let current_dir = std::env::current_dir()
+        .and_then(|d| d.canonicalize())
+        .map_err(|e| NutError::GetCurrentDirectoryFailed { source: e })?;
+
     if let Ok(stripped) = current_dir.strip_prefix(&data_local_dir) {
         let components: Vec<&std::ffi::OsStr> =
             stripped.components().map(|c| c.as_os_str()).collect();
@@ -58,5 +51,8 @@ pub fn get_entered_workspace() -> Result<ulid::Ulid> {
         }
     }
 
-    Err(NutError::NotInWorkspace)
+    Err(NutError::NotInWorkspace {
+        working_directory: current_dir.display().to_string(),
+        data_directory: data_local_dir.display().to_string(),
+    })
 }

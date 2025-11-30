@@ -1,4 +1,4 @@
-use miette::{Diagnostic};
+use miette::Diagnostic;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -8,16 +8,27 @@ pub enum NutError {
     #[error("Already in workspace")]
     #[diagnostic(
         code(nut::workspace::already_entered),
-        help("Exit the current workspace before creating or entering a new one")
+        help(
+            "Exit the current workspace before creating or entering a new one (for example, return to the home directory by running 'cd ~')"
+        )
     )]
     AlreadyInWorkspace,
 
-    #[error("Not in a workspace")]
+    #[error(
+        "Not in a workspace.
+    Current working directory: {working_directory}
+    Data directory: {data_directory}"
+    )]
     #[diagnostic(
         code(nut::workspace::not_entered),
-        help("Create a new workspace with 'nut create' or enter one with 'nut enter <id>'")
+        help(
+            "Create a new workspace with 'nut create' or enter one with 'nut enter <id>'. You need to be inside the workspace directory or pass the workspace ID via the --workspace option."
+        )
     )]
-    NotInWorkspace,
+    NotInWorkspace {
+        working_directory: String,
+        data_directory: String,
+    },
 
     #[error("Failed to create directory: {path}")]
     #[diagnostic(code(nut::io::create_dir))]
@@ -89,7 +100,10 @@ pub enum NutError {
         code(nut::config::project_dirs),
         help("Unable to determine system configuration directories")
     )]
-    ProjectDirectoriesUnavailable,
+    ProjectDirectoriesUnavailable {
+        #[source]
+        source: std::io::Error,
+    },
 
     #[error("Git command failed: {command}")]
     #[diagnostic(code(nut::git::command_failed))]

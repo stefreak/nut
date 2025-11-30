@@ -5,6 +5,7 @@ mod gh;
 mod git;
 
 use std::ffi::OsStr;
+use std::io::{Write, stdout};
 
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
@@ -47,9 +48,19 @@ enum Commands {
     /// List existing workspaces
     List {},
     /// Show status of a workspace
-    Status {},
+    Status {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+    },
     /// Run a command in each repository
     Apply {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+
         /// Path to an executable script to run
         #[arg(short, long)]
         script: Option<clap::builder::OsStr>,
@@ -60,6 +71,11 @@ enum Commands {
     },
     /// Import repositories into a workspace
     Import {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+
         #[arg(short, long)]
         org: Option<String>,
 
@@ -74,8 +90,15 @@ enum Commands {
     },
     /// Print git cache directory
     CacheDir {},
-    /// Print workspace data directory
+    /// Print data directory containing workspaces
     DataDir {},
+    /// Print workspace directory
+    WorkspaceDir {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+    },
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -100,13 +123,13 @@ async fn main() -> Result<()> {
         }))
         .into_diagnostic()?;
     } else {
-    // Install the fancy error handler with default theme
-    miette::set_hook(Box::new(|_| {
-        Box::new(
-            miette::GraphicalReportHandler::new()
-                .with_theme(miette::GraphicalTheme::default())
-        )
-    }))?;    }
+        // Install the fancy error handler with default theme
+        miette::set_hook(Box::new(|_| {
+            Box::new(
+                miette::GraphicalReportHandler::new().with_theme(miette::GraphicalTheme::default()),
+            )
+        }))?;
+    }
 
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
@@ -198,10 +221,9 @@ async fn main() -> Result<()> {
                 println!();
             }
         }
-        Some(Commands::Status {}) => {
-            let workspace_id = enter::get_entered_workspace()?;
-            let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
-            let statuses = git::get_all_repos_status(&workspace_dir)?;
+        Some(Commands::Status { workspace }) => {
+            let workspace = get_workspace(workspace)?;
+            let statuses = git::get_all_repos_status(&workspace.path)?;
 
             // Count repositories with and without changes
             let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();
@@ -226,7 +248,11 @@ async fn main() -> Result<()> {
                 println!();
 
                 for status in repos_with_changes {
-                    println!("  {} ({})", status.path_relative.to_string_lossy(), status.current_branch);
+                    println!(
+                        "  {} ({})",
+                        status.path_relative.to_string_lossy(),
+                        status.current_branch
+                    );
 
                     if status.staged_files > 0 {
                         println!("    {} file(s) with staged changes", status.staged_files);
@@ -244,14 +270,20 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Some(Commands::Apply { script, command }) => {
-            let workspace_id = enter::get_entered_workspace()?;
-            let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+        Some(Commands::Apply {
+            workspace,
+            script,
+            command,
+        }) => {
+            let workspace = get_workspace(workspace)?;
 
             // Handle script mode
             if let Some(script_path) = script {
                 let absolute_script_path = std::fs::canonicalize(script_path).map_err(|e| {
-                    NutError::ScriptPathInvalid { path: script_path.display().to_string(), source: e } 
+                    NutError::ScriptPathInvalid {
+                        path: script_path.display().to_string(),
+                        source: e,
+                    }
                 })?;
 
                 // only for unix
@@ -259,33 +291,43 @@ async fn main() -> Result<()> {
                 {
                     use std::os::unix::fs::PermissionsExt;
                     let metadata = std::fs::metadata(&absolute_script_path).map_err(|e| {
-                        NutError::ScriptPathInvalid { path: script_path.display().to_string(), source: e } 
+                        NutError::ScriptPathInvalid {
+                            path: script_path.display().to_string(),
+                            source: e,
+                        }
                     })?;
                     let permissions = metadata.permissions();
                     if (permissions.mode() & 0o111) == 0 {
-                        return Err(NutError::ScriptNotExecutable { path: script_path.display().to_string() }.into());
+                        return Err(NutError::ScriptNotExecutable {
+                            path: script_path.display().to_string(),
+                        }
+                        .into());
                     }
                 }
 
                 let mut args: Vec<&OsStr> = vec![absolute_script_path.as_os_str()];
                 args.extend(command.iter().map(|s| s.as_os_str()));
-                git::apply_command(&workspace_dir, args)?;
+                git::apply_command(&workspace.path, args)?;
             } else {
                 // Direct command mode
                 if command.is_empty() {
                     return Err(NutError::ApplyMissingCommand.into());
                 }
 
-                git::apply_command(&workspace_dir, command.into_iter().map(|s| s.as_os_str()).collect())?;
+                git::apply_command(
+                    &workspace.path,
+                    command.iter().map(|s| s.as_os_str()).collect(),
+                )?;
             }
         }
         Some(Commands::Import {
+            workspace,
             github_token,
             user,
             repo,
             org,
         }) => {
-            let _ = enter::get_entered_workspace()?;
+            let workspace = get_workspace(workspace)?;
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
@@ -313,7 +355,7 @@ async fn main() -> Result<()> {
                         None => None,
                     };
 
-                    git::clone(full_name, &latest_commit, default_branch)?;
+                    git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
                 }
                 (Some(user), None, _) => {
                     let stream = crab
@@ -345,7 +387,7 @@ async fn main() -> Result<()> {
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
-                        git::clone(full_name, &latest_commit, default_branch)?;
+                        git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
                     }
                 }
                 (_, _, Some(org)) => {
@@ -378,7 +420,7 @@ async fn main() -> Result<()> {
                                 .map(|c| c.sha.clone()),
                             None => None,
                         };
-                        git::clone(full_name, &latest_commit, default_branch)?;
+                        git::clone(&workspace.path, full_name, &latest_commit, default_branch)?;
                     }
                 }
                 _ => {
@@ -387,21 +429,48 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::CacheDir {}) => {
-            println!(
-                "{}",
-                get_cache_dir()?.to_str().ok_or(NutError::InvalidUtf8)?
-            )
+            write_path_to_stdout(get_cache_dir()?)?;
         }
         Some(Commands::DataDir {}) => {
-            println!(
-                "{}",
-                get_data_local_dir()?
-                    .to_str()
-                    .ok_or(NutError::InvalidUtf8)?
-            )
+            write_path_to_stdout(get_data_local_dir()?)?;
+        }
+        Some(Commands::WorkspaceDir { workspace }) => {
+            let workspace = get_workspace(workspace)?;
+            write_path_to_stdout(workspace.path.clone())?;
         }
         None => {}
     }
 
+    Ok(())
+}
+
+struct Workspace {
+    #[allow(dead_code)]
+    id: ulid::Ulid,
+    path: std::path::PathBuf,
+}
+fn get_workspace(workspace_arg: &Option<String>) -> Result<Workspace> {
+    let ulid = match workspace_arg {
+        Some(id) => id.parse().map_err(|e| NutError::InvalidWorkspaceId {
+            id: id.clone(),
+            source: e,
+        })?,
+        None => enter::get_entered_workspace()?,
+    };
+
+    let workspace_dir = dirs::get_data_local_dir()?.join(ulid.to_string());
+
+    Ok(Workspace {
+        id: ulid,
+        path: workspace_dir,
+    })
+}
+
+// let's preserves the original path even if it does not happen to be valid utf-8, which is valid in some platforms.
+fn write_path_to_stdout(path: std::path::PathBuf) -> Result<()> {
+    stdout()
+        .write(path.into_os_string().into_encoded_bytes().as_slice())
+        .into_diagnostic()?;
+    println!();
     Ok(())
 }
