@@ -256,7 +256,7 @@ pub async fn clone_parallel(
                 let _guard = stdout_lock.lock().await;
                 match &clone_result {
                     Ok(_) => println!("✓ {}", full_name),
-                    Err(_) => eprintln!("✗ {}", full_name),
+                    Err(_) => println!("✗ {}", full_name),
                 }
             }
 
