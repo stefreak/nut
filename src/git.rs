@@ -28,15 +28,10 @@ pub fn clone(
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
         if workspace_dir.join(full_name).exists() {
             let workspace_repo_dir = workspace_dir.join(full_name);
-            std::env::set_current_dir(&workspace_repo_dir).map_err(|e| {
-                NutError::ChangeDirectoryFailed {
-                    path: workspace_repo_dir.clone(),
-                    source: e,
-                }
-            })?;
 
             // get latest commit in default branch
             let output = std::process::Command::new("git")
+                .current_dir(&workspace_repo_dir)
                 .arg("rev-parse")
                 .arg(format!("origin/{default_branch}"))
                 .output()
@@ -48,6 +43,7 @@ pub fn clone(
             if cache_latest_commit != *latest_commit {
                 // get current branch
                 let output = std::process::Command::new("git")
+                    .current_dir(&workspace_repo_dir)
                     .arg("branch")
                     .arg("--show-current")
                     .output()
@@ -59,6 +55,7 @@ pub fn clone(
 
                 if current_branch != *default_branch {
                     let status = std::process::Command::new("git")
+                        .current_dir(&workspace_repo_dir)
                         .arg("fetch")
                         .arg("origin")
                         .status()
@@ -73,6 +70,7 @@ pub fn clone(
                     }
                 } else {
                     let status = std::process::Command::new("git")
+                        .current_dir(&workspace_repo_dir)
                         .arg("pull")
                         .status()
                         .map_err(|e| NutError::GitCommandFailed {
@@ -91,15 +89,10 @@ pub fn clone(
 
         if cache_dir.join(full_name).exists() {
             let cache_repo_dir = cache_dir.join(full_name);
-            std::env::set_current_dir(&cache_repo_dir).map_err(|e| {
-                NutError::ChangeDirectoryFailed {
-                    path: cache_repo_dir.clone(),
-                    source: e,
-                }
-            })?;
 
             // get latest commit in default branch
             let output = std::process::Command::new("git")
+                .current_dir(&cache_repo_dir)
                 .arg("rev-parse")
                 .arg(format!("origin/{default_branch}"))
                 .output()
@@ -110,6 +103,7 @@ pub fn clone(
             let cache_latest_commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if cache_latest_commit != *latest_commit {
                 let status = std::process::Command::new("git")
+                    .current_dir(&cache_repo_dir)
                     .arg("remote")
                     .arg("update")
                     .arg("--prune")
@@ -129,11 +123,8 @@ pub fn clone(
                 path: cache_dir.clone(),
                 source: e,
             })?;
-            std::env::set_current_dir(&cache_dir).map_err(|e| NutError::ChangeDirectoryFailed {
-                path: cache_dir.clone(),
-                source: e,
-            })?;
             let status = std::process::Command::new("git")
+                .current_dir(&cache_dir)
                 .arg("clone")
                 .arg(&clone_url)
                 .arg(full_name)
@@ -157,13 +148,10 @@ pub fn clone(
         return Ok(());
     }
 
-    std::env::set_current_dir(&workspace_dir).map_err(|e| NutError::ChangeDirectoryFailed {
-        path: workspace_dir.clone(),
-        source: e,
-    })?;
     let cache_repo_path = cache_dir.join(full_name);
     let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
     let status = std::process::Command::new("git")
+        .current_dir(&workspace_dir)
         .arg("clone")
         .arg("--local")
         .arg(cache_dir_str)
@@ -180,13 +168,8 @@ pub fn clone(
     }
 
     let workspace_repo_dir = workspace_dir.join(full_name);
-    std::env::set_current_dir(&workspace_repo_dir).map_err(|e| {
-        NutError::ChangeDirectoryFailed {
-            path: workspace_repo_dir.clone(),
-            source: e,
-        }
-    })?;
     let status = std::process::Command::new("git")
+        .current_dir(&workspace_repo_dir)
         .arg("remote")
         .arg("set-url")
         .arg("origin")
