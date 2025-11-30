@@ -204,7 +204,7 @@ stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git commit -m "Change XYZ"
 
 ### Managing pull requests
 
-You can manage pull requests using the [official GitHub CLI](https://cli.github.com/):
+You can create pull requests using the [official GitHub CLI](https://cli.github.com/):
 
 ```console
 stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply sh -c "git push -u origin HEAD && gh pr create --fill"
