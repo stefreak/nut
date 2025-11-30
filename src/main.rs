@@ -423,12 +423,19 @@ async fn main() -> Result<()> {
             };
 
             match (user, repo, org) {
-                (Some(user), Some(repo), _) => {
-                    let repo_handler = crab.repos(user, repo);
+                (user, Some(repo), org) => {
+                    let owner = match (user, org) {
+                        (Some(user), None) => user,
+                        (None, Some(org)) => org,
+                        _ => {
+                            return Err(NutError::InvalidArgumentCombination.into());
+                        }
+                    };
+                    let repo_handler = crab.repos(owner, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
                     process_repo(&workspace.path, &crab, details, &filters).await?;
                 }
-                (Some(user), None, _) => {
+                (Some(user), None, None) => {
                     let stream = crab
                         .users(user)
                         .repos()
@@ -442,7 +449,7 @@ async fn main() -> Result<()> {
                         process_repo(&workspace.path, &crab, details, &filters).await?;
                     }
                 }
-                (_, _, Some(org)) => {
+                (None, None, Some(org)) => {
                     let stream = crab
                         .orgs(org)
                         .list_repos()
