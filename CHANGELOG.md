@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/stefreak/nut/compare/v0.1.3...v0.2.0) - 2025-11-30
+
+### <!-- 0 -->New features
+
+- [**breaking**] only determine current workspace based on current directory or explicit option
+- replace reset/commit/submit with unified apply command ([#14](https://github.com/stefreak/nut/pull/14))
+- integrate gh CLI for protocol config and token auto-discovery ([#15](https://github.com/stefreak/nut/pull/15))
+
+### <!-- 1 -->Bug fixes
+
+- improve UX and fix several issues in AI generated code
+
+### <!-- 4 -->Miscellaneous
+
+- Implement automated Clippy and code formatting in GitHub Actions ([#13](https://github.com/stefreak/nut/pull/13))
+
+### Refactor
+
+- remove unsafe blocks and global state manipulation ([#18](https://github.com/stefreak/nut/pull/18))
+
 ## [0.1.3](https://github.com/stefreak/nut/compare/v0.1.2...v0.1.3) - 2025-11-29
 
 ### <!-- 0 -->New features
