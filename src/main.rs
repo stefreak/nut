@@ -103,6 +103,10 @@ enum Commands {
         /// Skip public repositories
         #[arg(long)]
         skip_public: bool,
+
+        /// Include archived repositories (by default, archived repositories are skipped)
+        #[arg(long)]
+        include_archived: bool,
     },
     /// Print git cache directory
     CacheDir {},
@@ -117,16 +121,23 @@ enum Commands {
     },
 }
 
-/// Check if a repository should be skipped based on filter flags
-fn should_skip_repo(
-    details: &octocrab::models::Repository,
+struct RepoFilters {
     skip_forks: bool,
     skip_private: bool,
     skip_internal: bool,
     skip_public: bool,
-) -> bool {
+    include_archived: bool,
+}
+
+/// Check if a repository should be skipped based on filter flags
+fn should_skip_repo(details: &octocrab::models::Repository, filters: &RepoFilters) -> bool {
+    // Skip archived repos by default unless include_archived is true
+    if !filters.include_archived && details.archived.unwrap_or(false) {
+        return true;
+    }
+
     // Skip forks if requested
-    if skip_forks && details.fork.unwrap_or(false) {
+    if filters.skip_forks && details.fork.unwrap_or(false) {
         return true;
     }
 
@@ -135,17 +146,17 @@ fn should_skip_repo(
     let visibility = details.visibility.as_deref();
 
     // Skip private repos if requested
-    if skip_private && is_private {
+    if filters.skip_private && is_private {
         return true;
     }
 
     // Skip internal repos if requested
-    if skip_internal && visibility == Some("internal") {
+    if filters.skip_internal && visibility == Some("internal") {
         return true;
     }
 
     // Skip public repos if requested
-    if skip_public && !is_private && visibility != Some("internal") {
+    if filters.skip_public && !is_private && visibility != Some("internal") {
         return true;
     }
 
@@ -157,19 +168,10 @@ async fn process_repo(
     workspace_path: &std::path::PathBuf,
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
-    skip_forks: bool,
-    skip_private: bool,
-    skip_internal: bool,
-    skip_public: bool,
+    filters: &RepoFilters,
 ) -> Result<()> {
     // Check if repo should be skipped
-    if should_skip_repo(
-        &details,
-        skip_forks,
-        skip_private,
-        skip_internal,
-        skip_public,
-    ) {
+    if should_skip_repo(&details, filters) {
         return Ok(());
     }
 
@@ -425,6 +427,7 @@ async fn main() -> Result<()> {
             skip_private,
             skip_internal,
             skip_public,
+            include_archived,
         }) => {
             let workspace = get_workspace(workspace)?;
 
@@ -434,20 +437,19 @@ async fn main() -> Result<()> {
                 .user_access_token(token.into_boxed_str())
                 .into_diagnostic()?;
 
+            let filters = RepoFilters {
+                skip_forks: *skip_forks,
+                skip_private: *skip_private,
+                skip_internal: *skip_internal,
+                skip_public: *skip_public,
+                include_archived: *include_archived,
+            };
+
             match (user, repo, org) {
                 (Some(user), Some(repo), _) => {
                     let repo_handler = crab.repos(user, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
-                    process_repo(
-                        &workspace.path,
-                        &crab,
-                        details,
-                        *skip_forks,
-                        *skip_private,
-                        *skip_internal,
-                        *skip_public,
-                    )
-                    .await?;
+                    process_repo(&workspace.path, &crab, details, &filters).await?;
                 }
                 (Some(user), None, _) => {
                     let stream = crab
@@ -460,16 +462,7 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(
-                            &workspace.path,
-                            &crab,
-                            details,
-                            *skip_forks,
-                            *skip_private,
-                            *skip_internal,
-                            *skip_public,
-                        )
-                        .await?;
+                        process_repo(&workspace.path, &crab, details, &filters).await?;
                     }
                 }
                 (_, _, Some(org)) => {
@@ -483,16 +476,7 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(
-                            &workspace.path,
-                            &crab,
-                            details,
-                            *skip_forks,
-                            *skip_private,
-                            *skip_internal,
-                            *skip_public,
-                        )
-                        .await?;
+                        process_repo(&workspace.path, &crab, details, &filters).await?;
                     }
                 }
                 _ => {
