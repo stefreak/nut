@@ -1,11 +1,13 @@
 use std::ffi::{OsStr, OsString};
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
 use futures_util::stream::{self, StreamExt};
 use miette::IntoDiagnostic;
+use tokio::sync::Mutex;
 
 pub struct RepoStatus {
     pub path_relative: OsString,
@@ -200,6 +202,7 @@ pub fn clone(
 ///
 /// This function takes a list of repositories and clones them in parallel,
 /// with a maximum number of concurrent clone operations controlled by `parallel_count`.
+/// Output from git commands is synchronized to prevent interleaving.
 pub async fn clone_parallel(
     workspace_dir: PathBuf,
     repos: Vec<CloneInfo>,
@@ -212,11 +215,22 @@ pub async fn clone_parallel(
         });
     }
 
+    // Create a mutex to synchronize stdout access across parallel clones
+    let stdout_lock = Arc::new(Mutex::new(()));
+
     // Create a stream of clone tasks
     let clone_tasks = stream::iter(repos).map(move |repo_info| {
         let workspace_dir = workspace_dir.clone();
+        let stdout_lock = stdout_lock.clone();
         async move {
             let full_name = repo_info.full_name.clone();
+
+            // Acquire lock before printing and cloning to prevent interleaved output
+            let _guard = stdout_lock.lock().await;
+
+            // Print what we're cloning
+            println!("Cloning {}...", full_name);
+
             // Clone is a blocking operation, so we run it in a blocking task
             let result = tokio::task::spawn_blocking(move || {
                 clone(
@@ -229,12 +243,21 @@ pub async fn clone_parallel(
             .await;
 
             // Handle the JoinError
-            match result {
+            let clone_result = match result {
                 Ok(clone_result) => clone_result,
                 Err(join_error) => Err(NutError::GitOperationFailed {
                     operation: format!("clone task for {} failed: {}", full_name, join_error),
                 }),
+            };
+
+            // Print completion status before releasing lock
+            match &clone_result {
+                Ok(_) => println!("✓ {}", full_name),
+                Err(_) => eprintln!("✗ {}", full_name),
             }
+
+            // Lock is released here when _guard goes out of scope
+            clone_result
         }
     });
 

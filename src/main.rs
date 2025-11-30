@@ -348,7 +348,6 @@ async fn main() -> Result<()> {
                     let repo = crab.repos(user, repo);
                     let details = repo.get().await.into_diagnostic()?;
                     let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
-                    println!("{}", full_name);
                     let default_branch = details.default_branch.clone();
                     let latest_commit = match &default_branch {
                         Some(d) => repo
@@ -385,7 +384,6 @@ async fn main() -> Result<()> {
                             details.name,
                         );
                         let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
-                        println!("{}", full_name);
                         let default_branch = details.default_branch.clone();
                         let latest_commit = match &default_branch {
                             Some(d) => repo
@@ -423,7 +421,6 @@ async fn main() -> Result<()> {
                             details.name,
                         );
                         let full_name = details.full_name.ok_or(NutError::InvalidUtf8)?;
-                        println!("{}", full_name);
                         let default_branch = details.default_branch.clone();
                         let latest_commit = match &default_branch {
                             Some(d) => repo
