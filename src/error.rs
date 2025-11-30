@@ -1,4 +1,4 @@
-use miette::Diagnostic;
+use miette::{Diagnostic};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -135,12 +135,23 @@ pub enum NutError {
     )]
     ApplyMissingCommand,
 
-    #[error("Script not found or not executable: {path}")]
+    #[error("Script is not executable: {path}")]
     #[diagnostic(
         code(nut::apply::script_not_executable),
-        help("Make sure the script exists and is executable (chmod +x {path})")
+        help("Make sure the script is executable (chmod +x {path})")
     )]
     ScriptNotExecutable { path: String },
+
+    #[error("Invalid script path: {path}")]
+    #[diagnostic(
+        code(nut::apply::script_path_invalid),
+        help("Make sure the script path is correct and accessible")
+    )]
+    ScriptPathInvalid {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
 
     #[error("Command execution failed in repository: {repo}")]
     #[diagnostic(code(nut::apply::command_failed))]

@@ -36,7 +36,7 @@ pub fn enter(ulid: ulid::Ulid) -> Result<()> {
 }
 
 pub fn get_entered_workspace() -> Result<ulid::Ulid> {
-    if let Ok(current_workspace) = std::env::var("NUT_WORKSPACE_ID") {
+    if let Ok(current_workspace) = std::env::var("NUT_WORKSPACE_ID") && current_workspace != "" {
         return current_workspace
             .parse()
             .map_err(|e| NutError::InvalidWorkspaceId {

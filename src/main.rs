@@ -4,6 +4,8 @@ mod error;
 mod gh;
 mod git;
 
+use std::ffi::OsStr;
+
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
 use futures_util::stream::TryStreamExt;
@@ -50,11 +52,11 @@ enum Commands {
     Apply {
         /// Path to an executable script to run
         #[arg(short, long)]
-        script: Option<String>,
+        script: Option<clap::builder::OsStr>,
 
         /// Command and arguments to run (must come after --)
         #[arg(trailing_var_arg = true, required = false)]
-        command: Vec<String>,
+        command: Vec<clap::builder::OsStr>,
     },
     /// Import repositories into a workspace
     Import {
@@ -97,7 +99,14 @@ async fn main() -> Result<()> {
             Box::new(miette::MietteHandlerOpts::new().color(false).build())
         }))
         .into_diagnostic()?;
-    }
+    } else {
+    // Install the fancy error handler with default theme
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            miette::GraphicalReportHandler::new()
+                .with_theme(miette::GraphicalTheme::default())
+        )
+    }))?;    }
 
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
@@ -191,7 +200,8 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Status {}) => {
             let workspace_id = enter::get_entered_workspace()?;
-            let statuses = git::get_all_repos_status(workspace_id)?;
+            let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
+            let statuses = git::get_all_repos_status(&workspace_dir)?;
 
             // Count repositories with and without changes
             let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();
@@ -216,7 +226,7 @@ async fn main() -> Result<()> {
                 println!();
 
                 for status in repos_with_changes {
-                    println!("  {} ({})", status.name, status.current_branch);
+                    println!("  {} ({})", status.path_relative.to_string_lossy(), status.current_branch);
 
                     if status.staged_files > 0 {
                         println!("    {} file(s) with staged changes", status.staged_files);
@@ -236,17 +246,37 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Apply { script, command }) => {
             let workspace_id = enter::get_entered_workspace()?;
+            let workspace_dir = dirs::get_data_local_dir()?.join(workspace_id.to_string());
 
             // Handle script mode
             if let Some(script_path) = script {
-                git::apply_script(workspace_id, script_path, command)?;
+                let absolute_script_path = std::fs::canonicalize(script_path).map_err(|e| {
+                    NutError::ScriptPathInvalid { path: script_path.display().to_string(), source: e } 
+                })?;
+
+                // only for unix
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let metadata = std::fs::metadata(&absolute_script_path).map_err(|e| {
+                        NutError::ScriptPathInvalid { path: script_path.display().to_string(), source: e } 
+                    })?;
+                    let permissions = metadata.permissions();
+                    if (permissions.mode() & 0o111) == 0 {
+                        return Err(NutError::ScriptNotExecutable { path: script_path.display().to_string() }.into());
+                    }
+                }
+
+                let mut args: Vec<&OsStr> = vec![absolute_script_path.as_os_str()];
+                args.extend(command.iter().map(|s| s.as_os_str()));
+                git::apply_command(&workspace_dir, args)?;
             } else {
                 // Direct command mode
                 if command.is_empty() {
                     return Err(NutError::ApplyMissingCommand.into());
                 }
 
-                git::apply_command(workspace_id, command)?;
+                git::apply_command(&workspace_dir, command.into_iter().map(|s| s.as_os_str()).collect())?;
             }
         }
         Some(Commands::Import {

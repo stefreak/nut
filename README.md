@@ -44,22 +44,25 @@ nut list
 nut enter <workspace-id>
 ```
 
-### Import repositories
+### Import GitHub repositories
 
 Import a single repository:
 ```bash
-nut import --user <username> --repo <repository> --github-token <token>
+nut import --user <username> --repo <repository>
 ```
 
 Import all repositories from a user:
 ```bash
-nut import --user <username> --github-token <token>
+nut import --user <username>
 ```
 
 Import all repositories from an organization:
 ```bash
-nut import --org <organization> --github-token <token>
+nut import --org <organization>
 ```
+
+Nut will automatically discover a GitHub token if you have the official GitHub CLI `gh` installed and ran `gh auth login` before.
+It will respect other decisions you made when configuring `gh`, for instance will use the configured git clone protocol (`ssh` or `http`).
 
 ### Status command
 
@@ -74,10 +77,8 @@ nut status
 Run a command across all repositories in the workspace:
 
 ```bash
-nut apply -- git commit -m "fix: foo bar"
+nut apply git commit -m "fix: foo bar"
 ```
-
-The `--` separator is required when your command contains flags to avoid ambiguity with nut's own options.
 
 You can also run a script in each repository:
 
@@ -87,10 +88,16 @@ nut apply --script path/to/script.sh
 
 Scripts must be executable (use `chmod +x script.sh` to make them executable).
 
-You can pass arguments to scripts after `--`:
+You can pass arguments to scripts as well:
 
 ```bash
-nut apply --script path/to/script.sh -- arg1 arg2
+nut apply --script path/to/script.sh arg1 arg2
+```
+
+In case options for your script clash with nut options, use the double dash to tell nut to stop parsing options:
+
+```bash
+nut apply --script path/to/script.sh -- --option1 --option2
 ```
 
 ### Other commands
