@@ -11,19 +11,19 @@ pub enum GitProtocol {
 
 impl GitProtocol {
     /// Convert to a git clone URL for a GitHub repository
-    pub fn to_clone_url(self, full_name: &str) -> String {
+    pub fn to_clone_url(self, host: &str, full_name: &str) -> String {
         match self {
-            GitProtocol::Https => format!("https://github.com/{full_name}.git"),
-            GitProtocol::Ssh => format!("git@github.com:{full_name}.git"),
+            GitProtocol::Https => format!("https://{host}/{full_name}.git"),
+            GitProtocol::Ssh => format!("git@{host}:{full_name}.git"),
         }
     }
 }
 
 /// Get the git protocol from gh config
 /// Returns None if gh is not available or config is not set
-pub fn get_git_protocol() -> Option<GitProtocol> {
+pub fn get_git_protocol(host: &str) -> Option<GitProtocol> {
     let output = Command::new("gh")
-        .args(["config", "get", "git_protocol"])
+        .args(["config", "get", "git_protocol", "-h", host])
         .output()
         .ok()?;
 
@@ -55,8 +55,8 @@ pub fn get_auth_token() -> Option<String> {
 /// Get the git protocol to use for cloning, with fallback logic
 /// 1. Try to get from gh config
 /// 2. Fall back to HTTPS (gh default)
-pub fn get_git_protocol_with_fallback() -> GitProtocol {
-    get_git_protocol().unwrap_or(GitProtocol::Https)
+pub fn get_git_protocol_with_fallback(host: &str) -> GitProtocol {
+    get_git_protocol(host).unwrap_or(GitProtocol::Https)
 }
 
 /// Get GitHub token with fallback logic
@@ -83,7 +83,7 @@ mod tests {
     fn test_git_protocol_to_clone_url_https() {
         let protocol = GitProtocol::Https;
         assert_eq!(
-            protocol.to_clone_url("owner/repo"),
+            protocol.to_clone_url("github.com", "owner/repo"),
             "https://github.com/owner/repo.git"
         );
     }
@@ -92,7 +92,7 @@ mod tests {
     fn test_git_protocol_to_clone_url_ssh() {
         let protocol = GitProtocol::Ssh;
         assert_eq!(
-            protocol.to_clone_url("owner/repo"),
+            protocol.to_clone_url("github.com", "owner/repo"),
             "git@github.com:owner/repo.git"
         );
     }
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_get_git_protocol_with_fallback_defaults_to_https() {
         // When gh is not available or not configured, should default to HTTPS
-        let protocol = get_git_protocol_with_fallback();
+        let protocol = get_git_protocol_with_fallback("github.com");
         assert_eq!(protocol, GitProtocol::Https);
     }
 

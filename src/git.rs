@@ -21,8 +21,10 @@ pub fn clone(
     latest_commit: &Option<String>,
     default_branch: &Option<String>,
 ) -> Result<()> {
-    let git_protocol = gh::get_git_protocol_with_fallback();
-    let clone_url = git_protocol.to_clone_url(full_name);
+    // TODO: add support for other hosts, e.g. github enterprise and other git hosting providers
+    let host = "github.com";
+    let git_protocol = gh::get_git_protocol_with_fallback(host);
+    let clone_url = git_protocol.to_clone_url(host, full_name);
 
     let cache_dir = dirs::get_cache_dir()?.join("github");
 
