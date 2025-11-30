@@ -48,7 +48,7 @@ nut enter <workspace-id>
 
 Import a single repository:
 ```bash
-nut import --user <username> --repo <repository>
+nut import <owner>/<repository>
 ```
 
 Import all repositories from a user:
@@ -59,6 +59,11 @@ nut import --user <username>
 Import all repositories from an organization:
 ```bash
 nut import --org <organization>
+```
+
+Parallelized import:
+```bash
+nut import --dry-run --org <organization> | xargs -n1 -P8 nut import
 ```
 
 Nut will automatically discover a GitHub token if you have the official GitHub CLI `gh` installed and ran `gh auth login` before.

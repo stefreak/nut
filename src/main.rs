@@ -72,6 +72,10 @@ enum Commands {
         #[arg(short, long)]
         workspace: Option<String>,
 
+        /// Do not actually clone, only print the repository names
+        #[arg(short, long)]
+        dry_run: bool,
+
         #[arg(short, long)]
         org: Option<String>,
 
@@ -103,6 +107,11 @@ enum Commands {
         /// Include archived repositories (by default, archived repositories are skipped)
         #[arg(long)]
         include_archived: bool,
+
+        /// List of specific repositories to import (full names, e.g. owner/repo)
+        /// Mutually exclusive with --user, --org and --repo options
+        #[arg(trailing_var_arg = true, required = false)]
+        full_repository_names: Vec<String>,
     },
     /// Print git cache directory
     CacheDir {},
@@ -165,6 +174,7 @@ async fn process_repo(
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
     filters: &RepoFilters,
+    dry_run: bool,
 ) -> Result<()> {
     // Check if repo should be skipped
     if should_skip_repo(&details, filters) {
@@ -177,6 +187,11 @@ async fn process_repo(
     );
     let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
     println!("{}", full_name);
+
+    if dry_run {
+        return Ok(());
+    }
+
     let default_branch = &details.default_branch;
     let latest_commit = match default_branch {
         Some(d) => repo
@@ -396,6 +411,7 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Import {
             workspace,
+            dry_run,
             github_token,
             user,
             repo,
@@ -405,6 +421,7 @@ async fn main() -> Result<()> {
             skip_internal,
             skip_public,
             include_archived,
+            full_repository_names,
         }) => {
             let workspace = get_workspace(workspace)?;
 
@@ -422,8 +439,24 @@ async fn main() -> Result<()> {
                 include_archived: *include_archived,
             };
 
-            match (user, repo, org) {
-                (user, Some(repo), org) => {
+            match (user, repo, org, full_repository_names) {
+                (None, None, None, names) if !names.is_empty() => {
+                    for full_name in names {
+                        let parts: Vec<&str> = full_name.split('/').collect();
+                        if parts.len() != 2 {
+                            return Err(NutError::InvalidRepositoryName {
+                                name: full_name.clone(),
+                            }
+                            .into());
+                        }
+                        let owner = parts[0];
+                        let repo = parts[1];
+                        let repo_handler = crab.repos(owner, repo);
+                        let details = repo_handler.get().await.into_diagnostic()?;
+                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
+                    }
+                }
+                (user, Some(repo), org, names) if names.is_empty() => {
                     let owner = match (user, org) {
                         (Some(user), None) => user,
                         (None, Some(org)) => org,
@@ -433,9 +466,9 @@ async fn main() -> Result<()> {
                     };
                     let repo_handler = crab.repos(owner, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
-                    process_repo(&workspace.path, &crab, details, &filters).await?;
+                    process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
                 }
-                (Some(user), None, None) => {
+                (Some(user), None, None, names) if names.is_empty() => {
                     let stream = crab
                         .users(user)
                         .repos()
@@ -446,10 +479,10 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(&workspace.path, &crab, details, &filters).await?;
+                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
                     }
                 }
-                (None, None, Some(org)) => {
+                (None, None, Some(org), names) if names.is_empty() => {
                     let stream = crab
                         .orgs(org)
                         .list_repos()
@@ -460,7 +493,7 @@ async fn main() -> Result<()> {
 
                     pin!(stream);
                     while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(&workspace.path, &crab, details, &filters).await?;
+                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
                     }
                 }
                 _ => {

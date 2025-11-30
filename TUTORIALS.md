@@ -38,6 +38,16 @@ Cloning into 'stefreak/swiftrest'...
 done.
 ```
 
+### Importing repositories in parallel
+
+In the future, nut will natively support parallelism.
+
+In the mean time, we can work around this limitation using `xargs`:
+
+```console
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import --dry-run --skip-forks --user stefreak | xargs -n1 -P8 nut import
+```
+
 ### Applying commands to a workspace
 
 Now let's implement the change we need across all repositories.

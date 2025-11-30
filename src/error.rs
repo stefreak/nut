@@ -136,15 +136,22 @@ pub enum NutError {
     InvalidUtf8,
 
     #[error(
-        "Please provide either user and optional repo, or org and optional repo. --user and --org cannot be combined."
+        "Please provide either user and optional repo, or org and optional repo. --user and --org cannot be combined. Options cannot be combined with positional arguments."
     )]
     #[diagnostic(
         code(nut::args::invalid_combination),
         help(
-            "Use --user <username> [--repo <repository>] or --org <organization> [--repo <repository>] "
+            "Use --user <username> [--repo <repository>] or --org <organization> [--repo <repository>], or positional arguments <owner>/<repo>"
         )
     )]
     InvalidArgumentCombination,
+
+    #[error("Invalid full repository name: '{name}'.")]
+    #[diagnostic(
+        code(nut::args::invalid_combination),
+        help("Must look like 'owner/repo'")
+    )]
+    InvalidRepositoryName { name: String },
 
     #[error("No command provided for apply")]
     #[diagnostic(
