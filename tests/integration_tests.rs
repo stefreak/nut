@@ -770,3 +770,40 @@ fn test_import_without_token_or_gh() {
         stderr
     );
 }
+
+#[test]
+fn test_import_parallel_option() {
+    let env = TestEnv::new("import_parallel_option");
+
+    let workspace = env.create_workspace("Test workspace for import with parallel option");
+
+    // Test that the parallel option is accepted
+    let output = env.run_nut(
+        &[
+            "import",
+            "--user",
+            "testuser",
+            "--repo",
+            "testrepo",
+            "--parallel",
+            "8",
+        ],
+        Some(workspace.id),
+    );
+
+    // This should still fail due to missing token, but it should accept the parallel option
+    assert!(
+        !output.status.success(),
+        "import command should fail when no token provided"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Should fail due to token, not due to invalid parallel option
+    assert!(
+        stderr.contains("GitHub token required") || stderr.contains("No GitHub token provided"),
+        "Error message should indicate token is required (not parallel option error). Got: {}",
+        stderr
+    );
+}
+
