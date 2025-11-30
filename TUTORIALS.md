@@ -3,8 +3,8 @@
 ### Creating a workspace
 
 ```console
-$ nut create -d "Change XYZ"
-01KBA98F91YBRNH3ARWJJSSA9E $
+stefreak@mbp % nut create -d "Change XYZ"
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E %
 ```
 
 You've now entered your workspace.
@@ -14,7 +14,7 @@ Let's import repositories. This will take a while when running the command for t
 This is because the import command is idempotent, and also it will cache common repository data across workspaces.
 
 ```console
-$ nut import --skip-forks --user stefreak # or --org xyz
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import --skip-forks --user stefreak # or --org xyz
 stefreak/buntspiel
 Cloning into 'stefreak/buntspiel'...
 done.
@@ -44,7 +44,7 @@ Now let's implement the change we need across all repositories.
 
 Create a new branch:
 ```console
-$ nut apply git checkout -b change-xyz
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git checkout -b change-xyz
 ==> stefreak/buntspiel <==
 Switched to a new branch 'change-xyz'
 
@@ -72,7 +72,7 @@ Switched to a new branch 'change-xyz'
 This command helps you to quickly understand what's going on in all repositories.
 
 ```console
-$ nut status
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut status
 Workspace status:
   11 repositories total
   11 clean, 0 with changes
@@ -88,11 +88,11 @@ Sometimes it's useful to run a script to automate decision making.
 The script will run inside the repository.
 
 ```console
-$ cat ~/change-xyz.sh
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % cat ~/change-xyz.sh
 #!/bin/sh
 touch XYZ.md
 echo Created new file XYZ.md
-$ nut apply -s ~/change-xyz.sh
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply -s ~/change-xyz.sh
 ==> stefreak/buntspiel <==
 Created new file XYZ.md
 
@@ -118,7 +118,7 @@ Created new file XYZ.md
 Use the status command to keep track of what's going on.
 
 ```console
-$ nut status
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut status
 Workspace status:
   7 repositories total
   0 clean, 7 with changes
@@ -149,7 +149,7 @@ Repositories with changes:
 
 Let's add and commit the changes:
 ```console
-$ nut apply git add .
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git add .
 ==> stefreak/buntspiel <==
 
 ==> stefreak/dappcamp-health-plus <==
@@ -164,7 +164,7 @@ $ nut apply git add .
 
 ==> stefreak/swiftrest <==
 
-stefreak@MacBookPro 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git commit -m "Change XYZ"
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git commit -m "Change XYZ"
 
 ==> stefreak/buntspiel <==
 [change-xyz 62f055f] Change XYZ
@@ -207,7 +207,7 @@ stefreak@MacBookPro 01KBA98F91YBRNH3ARWJJSSA9E % nut apply git commit -m "Change
 You can manage pull requests using the [official GitHub CLI](https://cli.github.com/):
 
 ```console
-$ nut apply sh -c "git push -u origin HEAD && gh pr create --fill"
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply sh -c "git push -u origin HEAD && gh pr create --fill"
 ==> stefreak/buntspiel <==
 Enumerating objects: 4, done.
 Counting objects: 100% (4/4), done.
@@ -318,7 +318,7 @@ https://github.com/stefreak/swiftrest/pull/2
 
 You can even manage existing PRs. We want to close these test PRs now to conclude the tutorial:
 ```console
-$ nut apply gh pr close change-xyz -d -c "this was a test"
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut apply gh pr close change-xyz -d -c "this was a test"
 ==> stefreak/buntspiel <==
 ✓ Closed pull request stefreak/buntspiel#2 (Change XYZ)
 ✓ Deleted branch change-xyz and switched to branch main
