@@ -225,13 +225,14 @@ pub async fn clone_parallel(
         async move {
             let full_name = repo_info.full_name.clone();
 
-            // Acquire lock before printing and cloning to prevent interleaved output
-            let _guard = stdout_lock.lock().await;
-
-            // Print what we're cloning
-            println!("Cloning {}...", full_name);
+            // Print start message (synchronized)
+            {
+                let _guard = stdout_lock.lock().await;
+                println!("Cloning {}...", full_name);
+            }
 
             // Clone is a blocking operation, so we run it in a blocking task
+            // This runs WITHOUT the lock, allowing parallel execution
             let result = tokio::task::spawn_blocking(move || {
                 clone(
                     &workspace_dir,
@@ -250,13 +251,15 @@ pub async fn clone_parallel(
                 }),
             };
 
-            // Print completion status before releasing lock
-            match &clone_result {
-                Ok(_) => println!("✓ {}", full_name),
-                Err(_) => eprintln!("✗ {}", full_name),
+            // Print completion status (synchronized)
+            {
+                let _guard = stdout_lock.lock().await;
+                match &clone_result {
+                    Ok(_) => println!("✓ {}", full_name),
+                    Err(_) => eprintln!("✗ {}", full_name),
+                }
             }
 
-            // Lock is released here when _guard goes out of scope
             clone_result
         }
     });

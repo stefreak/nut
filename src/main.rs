@@ -89,7 +89,7 @@ enum Commands {
         github_token: Option<String>,
 
         /// Number of repositories to clone in parallel
-        #[arg(long, default_value = "4", value_parser = clap::value_parser!(u8).range(1..))]
+        #[arg(long, default_value = "4", value_parser = clap::value_parser!(u8).range(1..=32))]
         parallel: u8,
     },
     /// Print git cache directory
