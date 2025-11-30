@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/stefreak/nut/compare/v0.2.0...v0.2.1) - 2025-11-30
+
+### <!-- 0 -->New features
+
+- add repository filtering options to nut import ([#21](https://github.com/stefreak/nut/pull/21))
+
+### <!-- 1 -->Bug fixes
+
+- pass github host to `gh get config` to make sure we use the correct git protocol
+
+### <!-- 3 -->Documentation
+
+- add tutorial with commands for managing pull requests
+
 ## [0.2.0](https://github.com/stefreak/nut/compare/v0.1.3...v0.2.0) - 2025-11-30
 
 ### <!-- 0 -->New features
