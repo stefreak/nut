@@ -103,7 +103,12 @@ nut apply --script path/to/script.sh -- --option1 --option2
 ### Other commands
 
 - `nut cache-dir` - Print git cache directory path
-- `nut data-dir` - Print workspace data directory path
+- `nut data-dir` - Print data directory path that contains workspaces
+- `nut workspace-dir` - Print absolute path to a specific workspace
+
+## Tutorial
+
+[Follow the tutorials](./TUTORIALS.md) to learn how you can use `nut` to manage changes across multiple repositories in your org.
 
 ## How it works
 
@@ -115,6 +120,12 @@ nut apply --script path/to/script.sh -- --option1 --option2
 When importing repositories, `nut` first creates or updates a cached bare clone, then uses `git clone --local` to create fast workspace copies. Workspaces are identified by ULID timestamps.
 `nut` is smart and just knows when the cache repositories need updating.
 
+## Feedback
+
+I've built `nut` for myself, but if you find it interesting and you feel like you would like it to behave differently, you're welcome to open a GitHub issue.
+
+I'd also be happy if you simply reach out because you've found it helpful.
+
 ## Development
 
 ### Running Tests
@@ -125,8 +136,6 @@ The project includes integration tests that verify the CLI behavior:
 cargo test
 ```
 
-For more information about the testing strategy, see [tests/README.md](tests/README.md).
-
 ### Building
 
 ```bash
@@ -135,4 +144,6 @@ cargo build --release
 
 ## License
 
-See LICENSE file for details.
+The code in this repository is licensed under the MIT license.
+
+See the [LICENSE](./LICENSE.md) file for details.
