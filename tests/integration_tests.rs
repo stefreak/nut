@@ -770,3 +770,66 @@ fn test_import_without_token_or_gh() {
         stderr
     );
 }
+
+#[test]
+fn test_workspace_arg_takes_precedence_over_active_workspace() {
+    let env = TestEnv::new("workspace_precedence");
+
+    // Create two workspaces
+    let workspace1 = env.create_workspace("First workspace");
+    let workspace2 = env.create_workspace("Second workspace");
+
+    // Create a repo in each workspace so we can verify which one is used
+    env.create_repo(&workspace1, "org1", "repo1");
+    env.create_repo(&workspace2, "org2", "repo2");
+
+    // Run status command from within workspace1 but with --workspace pointing to workspace2
+    // The --workspace argument should take precedence
+    let output = env.run_nut(
+        &["status", "--workspace", &workspace2.id.to_string()],
+        Some(workspace1.id),
+    );
+
+    assert!(
+        output.status.success(),
+        "status command should succeed with --workspace arg: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Should show workspace2's repos, not workspace1's
+    assert!(
+        stdout.contains("1 repositories total"),
+        "status should show 1 repository from workspace2, got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("1 clean"),
+        "status should show 1 clean repository, got:\n{stdout}"
+    );
+
+    // Run workspace-dir command from within workspace1 but with --workspace pointing to workspace2
+    let output = env.run_nut(
+        &["workspace-dir", "--workspace", &workspace2.id.to_string()],
+        Some(workspace1.id),
+    );
+
+    assert!(
+        output.status.success(),
+        "workspace-dir command should succeed with --workspace arg: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let returned_path = stdout.trim();
+
+    // Should return workspace2's path, not workspace1's
+    assert!(
+        returned_path.contains(&workspace2.id.to_string()),
+        "workspace-dir should return workspace2 path, got: {returned_path}"
+    );
+    assert!(
+        !returned_path.contains(&workspace1.id.to_string()),
+        "workspace-dir should not return workspace1 path, got: {returned_path}"
+    );
+}
