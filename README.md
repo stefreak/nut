@@ -141,11 +141,12 @@ The project includes integration tests that verify the CLI behavior:
 cargo test
 ```
 
-### Building
+### Run test version
 
 ```bash
-cargo build --release
+cargo run enter <workspace-id>
 ```
+After entering a workspace, you can refer to the test binary just using `nut` (It will update the `PATH`)
 
 ## License
 
