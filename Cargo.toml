@@ -10,6 +10,10 @@ homepage = "https://github.com/stefreak/nut"
 categories = ["command-line-utilities", "development-tools"]
 exclude = ["/tests", "/.github", "/target", ".gitignore"]
 
+[lib]
+name = "nut_workspace"
+path = "src/lib.rs"
+
 [[bin]]
 name = "nut"
 path = "src/main.rs"
@@ -48,3 +52,10 @@ thiserror = "2"
 tokio = { version = "1.48.0", features = ["full", "tokio-macros"] }
 ulid = "1.2.1"
 walkdir = "2.5.0"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "status_bench"
+harness = false
