@@ -9,9 +9,7 @@ use std::io::{Write, stdout};
 
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand};
-use futures_util::stream::TryStreamExt;
 use miette::{IntoDiagnostic, Result};
-use tokio::pin;
 use ulid::Ulid;
 
 use crate::dirs::{get_cache_dir, get_data_local_dir};
@@ -76,40 +74,17 @@ enum Commands {
         #[arg(short, long)]
         dry_run: bool,
 
+        /// Search query to find repositories (uses GitHub search syntax)
+        /// Example: "owner:stefreak language:rust -fork:true"
+        /// See https://github.com/search for query syntax
         #[arg(short, long)]
-        org: Option<String>,
-
-        #[arg(short, long)]
-        user: Option<String>,
-
-        #[arg(short, long)]
-        repo: Option<String>,
+        query: Option<String>,
 
         #[arg(short, long)]
         github_token: Option<String>,
 
-        /// Skip forked repositories
-        #[arg(long)]
-        skip_forks: bool,
-
-        /// Skip private repositories
-        #[arg(long)]
-        skip_private: bool,
-
-        /// Skip internal repositories
-        #[arg(long)]
-        skip_internal: bool,
-
-        /// Skip public repositories
-        #[arg(long)]
-        skip_public: bool,
-
-        /// Include archived repositories (by default, archived repositories are skipped)
-        #[arg(long)]
-        include_archived: bool,
-
         /// List of specific repositories to import (full names, e.g. owner/repo)
-        /// Mutually exclusive with --user, --org and --repo options
+        /// Mutually exclusive with --query option
         #[arg(trailing_var_arg = true, required = false)]
         full_repository_names: Vec<String>,
     },
@@ -126,61 +101,13 @@ enum Commands {
     },
 }
 
-struct RepoFilters {
-    skip_forks: bool,
-    skip_private: bool,
-    skip_internal: bool,
-    skip_public: bool,
-    include_archived: bool,
-}
-
-/// Check if a repository should be skipped based on filter flags
-fn should_skip_repo(details: &octocrab::models::Repository, filters: &RepoFilters) -> bool {
-    // Skip archived repos by default unless include_archived is true
-    if !filters.include_archived && details.archived.unwrap_or(false) {
-        return true;
-    }
-
-    // Skip forks if requested
-    if filters.skip_forks && details.fork.unwrap_or(false) {
-        return true;
-    }
-
-    // Check visibility-based filters
-    let is_private = details.private.unwrap_or(false);
-    let visibility = details.visibility.as_deref();
-
-    // Skip private repos if requested
-    if filters.skip_private && is_private {
-        return true;
-    }
-
-    // Skip internal repos if requested
-    if filters.skip_internal && visibility == Some("internal") {
-        return true;
-    }
-
-    // Skip public repos if requested
-    if filters.skip_public && !is_private && visibility != Some("internal") {
-        return true;
-    }
-
-    false
-}
-
 /// Process a repository: fetch commit info and clone
 async fn process_repo(
     workspace_path: &std::path::PathBuf,
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
-    filters: &RepoFilters,
     dry_run: bool,
 ) -> Result<()> {
-    // Check if repo should be skipped
-    if should_skip_repo(&details, filters) {
-        return Ok(());
-    }
-
     let repo = crab.repos(
         details.owner.ok_or(NutError::InvalidUtf8)?.login,
         details.name,
@@ -413,16 +340,17 @@ async fn main() -> Result<()> {
             workspace,
             dry_run,
             github_token,
-            user,
-            repo,
-            org,
-            skip_forks,
-            skip_private,
-            skip_internal,
-            skip_public,
-            include_archived,
+            query,
             full_repository_names,
         }) => {
+            // Validate arguments first before checking for token
+            if query.is_some() && !full_repository_names.is_empty() {
+                return Err(NutError::QueryAndPositionalArgsConflict.into());
+            }
+            if query.is_none() && full_repository_names.is_empty() {
+                return Err(NutError::InvalidArgumentCombination.into());
+            }
+
             let workspace = get_workspace(workspace)?;
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
@@ -431,73 +359,44 @@ async fn main() -> Result<()> {
                 .user_access_token(token.into_boxed_str())
                 .into_diagnostic()?;
 
-            let filters = RepoFilters {
-                skip_forks: *skip_forks,
-                skip_private: *skip_private,
-                skip_internal: *skip_internal,
-                skip_public: *skip_public,
-                include_archived: *include_archived,
-            };
+            if let Some(q) = query {
+                // Use search API with query
+                let mut page = crab
+                    .search()
+                    .repositories(q)
+                    .send()
+                    .await
+                    .into_diagnostic()?;
 
-            match (user, repo, org, full_repository_names) {
-                (None, None, None, names) if !names.is_empty() => {
-                    for full_name in names {
-                        let parts: Vec<&str> = full_name.split('/').collect();
-                        if parts.len() != 2 {
-                            return Err(NutError::InvalidRepositoryName {
-                                name: full_name.clone(),
-                            }
-                            .into());
-                        }
-                        let owner = parts[0];
-                        let repo = parts[1];
-                        let repo_handler = crab.repos(owner, repo);
-                        let details = repo_handler.get().await.into_diagnostic()?;
-                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
+                loop {
+                    for details in page.items {
+                        process_repo(&workspace.path, &crab, details, *dry_run).await?;
+                    }
+
+                    page = match crab
+                        .get_page::<octocrab::models::Repository>(&page.next)
+                        .await
+                        .into_diagnostic()?
+                    {
+                        Some(next_page) => next_page,
+                        None => break,
                     }
                 }
-                (user, Some(repo), org, names) if names.is_empty() => {
-                    let owner = match (user, org) {
-                        (Some(user), None) => user,
-                        (None, Some(org)) => org,
-                        _ => {
-                            return Err(NutError::InvalidArgumentCombination.into());
+            } else {
+                // Import specific repositories by full name
+                for full_name in full_repository_names {
+                    let parts: Vec<&str> = full_name.split('/').collect();
+                    if parts.len() != 2 {
+                        return Err(NutError::InvalidRepositoryName {
+                            name: full_name.clone(),
                         }
-                    };
+                        .into());
+                    }
+                    let owner = parts[0];
+                    let repo = parts[1];
                     let repo_handler = crab.repos(owner, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
-                    process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
-                }
-                (Some(user), None, None, names) if names.is_empty() => {
-                    let stream = crab
-                        .users(user)
-                        .repos()
-                        .send()
-                        .await
-                        .into_diagnostic()?
-                        .into_stream(&crab);
-
-                    pin!(stream);
-                    while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
-                    }
-                }
-                (None, None, Some(org), names) if names.is_empty() => {
-                    let stream = crab
-                        .orgs(org)
-                        .list_repos()
-                        .send()
-                        .await
-                        .into_diagnostic()?
-                        .into_stream(&crab);
-
-                    pin!(stream);
-                    while let Some(details) = stream.try_next().await.into_diagnostic()? {
-                        process_repo(&workspace.path, &crab, details, &filters, *dry_run).await?;
-                    }
-                }
-                _ => {
-                    return Err(NutError::InvalidArgumentCombination.into());
+                    process_repo(&workspace.path, &crab, details, *dry_run).await?;
                 }
             }
         }

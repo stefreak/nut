@@ -46,24 +46,34 @@ nut enter <workspace-id>
 
 ### Import GitHub repositories
 
-Import a single repository:
+Import repositories using a search query (uses the same syntax as GitHub's search bar):
 ```bash
-nut import <owner>/<repository>
+nut import --query "owner:stefreak language:rust -fork:only -archived:true"
 ```
 
-Import all repositories from a user:
+More query examples:
 ```bash
-nut import --user <username>
+# Import all JavaScript and TypeScript repos from an org, excluding archived repos
+nut import --query "org:actions language:JavaScript,TypeScript -fork:only -archived:true"
+
+# Import all public repositories from a user
+nut import --query "user:stefreak is:public"
+
+# Import repositories with specific topics
+nut import --query "topic:rust-cli user:stefreak"
 ```
 
-Import all repositories from an organization:
+You can use the same search syntax as on [github.com/search](https://github.com/search).
+
+Import specific repositories by name:
 ```bash
-nut import --org <organization>
+nut import owner/repository
+nut import owner/repo1 owner/repo2 owner/repo3
 ```
 
-Parallelized import:
+Parallelized import with dry-run:
 ```bash
-nut import --dry-run --org <organization> | xargs -n1 -P8 nut import
+nut import --dry-run --query "org:myorg" | xargs -n1 -P8 nut import
 ```
 
 Nut will automatically discover a GitHub token if you have the official GitHub CLI `gh` installed and ran `gh auth login` before.
