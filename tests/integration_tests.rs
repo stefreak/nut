@@ -828,4 +828,3 @@ fn test_import_requires_query_or_positional() {
         stderr
     );
 }
-
