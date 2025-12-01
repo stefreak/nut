@@ -828,3 +828,38 @@ fn test_import_requires_query_or_positional() {
         stderr
     );
 }
+
+#[test]
+#[ignore] // This test makes real GitHub API calls and may require authentication
+fn test_import_query_public_repos() {
+    let env = TestEnv::new("import_query_public");
+
+    let workspace = env.create_workspace("Test workspace for query import");
+
+    // Try to import public repos from stefreak user
+    // This should work even without a token for public repos, but we'll provide one if available
+    let output = env.run_nut(
+        &["import", "--query", "user:stefreak", "--dry-run"],
+        Some(workspace.id),
+    );
+
+    // If gh is authenticated or API is accessible, this should succeed
+    // Otherwise, it will fail with token error which is acceptable
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    if output.status.success() {
+        // If successful, we should see some repository names in stdout
+        assert!(
+            !stdout.is_empty(),
+            "Output should contain repository names when query succeeds"
+        );
+    } else {
+        // If failed, it should be due to missing token
+        assert!(
+            stderr.contains("token") || stderr.contains("authenticated"),
+            "Failure should be due to missing token. Got: {}",
+            stderr
+        );
+    }
+}
