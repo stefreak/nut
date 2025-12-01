@@ -79,6 +79,9 @@ fn cleanup_workspace(workspace_dir: &PathBuf) {
 
 fn bench_get_all_repos_status(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_all_repos_status");
+    
+    // Create a tokio runtime once for all benchmarks
+    let rt = tokio::runtime::Runtime::new().unwrap();
 
     // Test with different numbers of repositories
     for num_repos in [5, 10, 20, 50].iter() {
@@ -88,8 +91,6 @@ fn bench_get_all_repos_status(c: &mut Criterion) {
             BenchmarkId::from_parameter(format!("{}_repos", num_repos)),
             num_repos,
             |b, _| {
-                // Create a tokio runtime for the benchmark
-                let rt = tokio::runtime::Runtime::new().unwrap();
                 b.iter(|| {
                     // Call the actual async implementation from the library
                     let statuses = rt.block_on(git::get_all_repos_status(&workspace_dir)).unwrap();

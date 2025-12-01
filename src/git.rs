@@ -320,6 +320,8 @@ pub async fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoSta
     // Wait for all tasks to complete
     let mut statuses = Vec::new();
     for task in tasks {
+        // If a task panics or a repo status check fails, skip it and continue
+        // This allows us to show status for other repos even if some fail
         if let Ok(Some(status)) = task.await {
             statuses.push(status);
         }
