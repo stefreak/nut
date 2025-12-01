@@ -136,12 +136,21 @@ pub enum NutError {
     InvalidUtf8,
 
     #[error(
-        "Please provide either user and optional repo, or org and optional repo. --user and --org cannot be combined. Options cannot be combined with positional arguments."
+        "Please provide either a query using --query or positional repository arguments, but not both."
     )]
+    #[diagnostic(
+        code(nut::args::query_and_positional_conflict),
+        help(
+            "Use --query <query> OR positional arguments <owner>/<repo>, but not both at the same time"
+        )
+    )]
+    QueryAndPositionalArgsConflict,
+
+    #[error("Please provide either a query using --query or positional repository arguments.")]
     #[diagnostic(
         code(nut::args::invalid_combination),
         help(
-            "Use --user <username> [--repo <repository>] or --org <organization> [--repo <repository>], or positional arguments <owner>/<repo>"
+            "Use --query <query> to search for repositories or provide positional arguments <owner>/<repo>"
         )
     )]
     InvalidArgumentCombination,

@@ -705,10 +705,7 @@ fn test_import_without_token_or_gh() {
     let workspace = env.create_workspace("Test workspace for import");
 
     // Try to import without providing a token and with PATH that doesn't include gh
-    let output = env.run_nut(
-        &["import", "--user", "testuser", "--repo", "testrepo"],
-        Some(workspace.id),
-    );
+    let output = env.run_nut(&["import", "--query", "owner:testuser"], Some(workspace.id));
 
     assert!(
         !output.status.success(),
@@ -780,5 +777,54 @@ fn test_workspace_arg_takes_precedence_over_active_workspace() {
     assert_eq!(
         returned_path, workspace2.path,
         "workspace-dir should return workspace2 path"
+    );
+}
+
+#[test]
+fn test_import_query_and_positional_args_conflict() {
+    let env = TestEnv::new("import_conflict");
+
+    let workspace = env.create_workspace("Test workspace for import");
+
+    // Try to use both --query and positional args - should fail
+    let output = env.run_nut(
+        &["import", "--query", "language:rust", "stefreak/nut"],
+        Some(workspace.id),
+    );
+
+    assert!(
+        !output.status.success(),
+        "import command should fail when both --query and positional args are provided"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("query") && (stderr.contains("positional") || stderr.contains("both")),
+        "Error message should indicate conflict between query and positional args. Got: {}",
+        stderr
+    );
+}
+
+#[test]
+fn test_import_requires_query_or_positional() {
+    let env = TestEnv::new("import_no_args");
+
+    let workspace = env.create_workspace("Test workspace for import");
+
+    // Try to import without any arguments - should fail
+    let output = env.run_nut(&["import"], Some(workspace.id));
+
+    assert!(
+        !output.status.success(),
+        "import command should fail when neither --query nor positional args are provided"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        stderr.contains("query") || stderr.contains("positional") || stderr.contains("provide"),
+        "Error message should indicate missing arguments. Got: {}",
+        stderr
     );
 }
