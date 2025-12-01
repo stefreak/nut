@@ -239,7 +239,7 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Status { workspace }) => {
             let workspace = get_workspace(workspace)?;
-            let statuses = git::get_all_repos_status(&workspace.path)?;
+            let statuses = git::get_all_repos_status(&workspace.path).await?;
 
             // Count repositories with and without changes
             let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();

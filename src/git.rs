@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
 use miette::IntoDiagnostic;
-use rayon::prelude::*;
 
 pub struct RepoStatus {
     pub path_relative: OsString,
@@ -192,8 +191,9 @@ pub fn clone(
     Ok(())
 }
 
-pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Option<RepoStatus> {
-    let abs_path = workspace_dir.join(repo_path_relative);
+// Async version for concurrent execution using tokio
+async fn get_repo_status_async(workspace_dir: PathBuf, repo_path_relative: PathBuf) -> Option<RepoStatus> {
+    let abs_path = workspace_dir.join(&repo_path_relative);
 
     // Check if the path is a git repository
     if !abs_path.join(".git").exists() {
@@ -201,11 +201,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
     }
 
     // Get current branch
-    let branch_output = std::process::Command::new("git")
+    let branch_output = tokio::process::Command::new("git")
         .current_dir(&abs_path)
         .arg("branch")
         .arg("--show-current")
         .output()
+        .await
         .ok()?;
 
     if !branch_output.status.success() {
@@ -218,12 +219,13 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 
     // Handle detached HEAD state
     if current_branch.is_empty() {
-        let rev_output = std::process::Command::new("git")
+        let rev_output = tokio::process::Command::new("git")
             .current_dir(&abs_path)
             .arg("rev-parse")
             .arg("--short")
             .arg("HEAD")
             .output()
+            .await
             .ok()?;
         if rev_output.status.success() {
             let commit = String::from_utf8_lossy(&rev_output.stdout)
@@ -236,11 +238,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
     }
 
     // Get git status porcelain output
-    let status_output = std::process::Command::new("git")
+    let status_output = tokio::process::Command::new("git")
         .current_dir(&abs_path)
         .arg("status")
         .arg("--porcelain")
         .output()
+        .await
         .ok()?;
 
     if !status_output.status.success() {
@@ -290,7 +293,7 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
     let has_changes = modified_files > 0 || staged_files > 0 || untracked_files > 0;
 
     Some(RepoStatus {
-        path_relative: repo_path_relative.clone().into_os_string(),
+        path_relative: repo_path_relative.into_os_string(),
         has_changes,
         modified_files,
         staged_files,
@@ -300,14 +303,27 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 }
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
-pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> {
+pub async fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
     
-    // Process repositories in parallel using rayon
-    let mut statuses: Vec<RepoStatus> = repos
-        .par_iter()
-        .filter_map(|repo_path_relative| get_repo_status(workspace_dir, repo_path_relative))
+    // Spawn concurrent tasks for each repository using tokio
+    let tasks: Vec<_> = repos
+        .into_iter()
+        .map(|repo_path_relative| {
+            let workspace_dir = workspace_dir.clone();
+            tokio::spawn(async move {
+                get_repo_status_async(workspace_dir, repo_path_relative).await
+            })
+        })
         .collect();
+
+    // Wait for all tasks to complete
+    let mut statuses = Vec::new();
+    for task in tasks {
+        if let Ok(Some(status)) = task.await {
+            statuses.push(status);
+        }
+    }
 
     // Sort by repository name for consistent output
     statuses.sort_by(|a, b| a.path_relative.cmp(&b.path_relative));

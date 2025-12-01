@@ -88,9 +88,11 @@ fn bench_get_all_repos_status(c: &mut Criterion) {
             BenchmarkId::from_parameter(format!("{}_repos", num_repos)),
             num_repos,
             |b, _| {
+                // Create a tokio runtime for the benchmark
+                let rt = tokio::runtime::Runtime::new().unwrap();
                 b.iter(|| {
-                    // Call the actual implementation from the library
-                    let statuses = git::get_all_repos_status(&workspace_dir).unwrap();
+                    // Call the actual async implementation from the library
+                    let statuses = rt.block_on(git::get_all_repos_status(&workspace_dir)).unwrap();
                     black_box(statuses)
                 });
             },
