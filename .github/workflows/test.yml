@@ -45,3 +45,5 @@ jobs:
       
       - name: Run tests
         run: cargo test --verbose
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

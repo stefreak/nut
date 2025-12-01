@@ -14,7 +14,7 @@ Let's import repositories. This will take a while when running the command for t
 This is because the import command is idempotent, and also it will cache common repository data across workspaces.
 
 ```console
-stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import --skip-forks --user stefreak # or --org xyz
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import -q "owner:stefreak -fork:only -archived:true visibility:public"
 stefreak/buntspiel
 Cloning into 'stefreak/buntspiel'...
 done.
@@ -45,7 +45,7 @@ In the future, nut will natively support parallelism.
 In the mean time, we can work around this limitation using `xargs`:
 
 ```console
-stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import --dry-run --skip-forks --user stefreak | xargs -n1 -P8 nut import
+stefreak@mbp 01KBA98F91YBRNH3ARWJJSSA9E % nut import --dry-run -q "owner:stefreak -fork:only -archived:true visibility:public" | xargs -n1 -P8 nut import
 ```
 
 ### Applying commands to a workspace

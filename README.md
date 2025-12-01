@@ -48,13 +48,13 @@ nut enter <workspace-id>
 
 Import repositories using a search query (uses the same syntax as GitHub's search bar):
 ```bash
-nut import --query "owner:stefreak language:rust -fork:true"
+nut import --query "owner:stefreak language:rust -fork:only -archived:true"
 ```
 
 More query examples:
 ```bash
 # Import all JavaScript and TypeScript repos from an org, excluding archived repos
-nut import --query "org:actions language:JavaScript,TypeScript -archived:true"
+nut import --query "org:actions language:JavaScript,TypeScript -fork:only -archived:true"
 
 # Import all public repositories from a user
 nut import --query "user:stefreak is:public"
@@ -63,7 +63,7 @@ nut import --query "user:stefreak is:public"
 nut import --query "topic:rust-cli user:stefreak"
 ```
 
-You can use the same search syntax as on [github.com/search](https://github.com/search?q=org%3Agithub%20language%3ATypeScript&type=repositories).
+You can use the same search syntax as on [github.com/search](https://github.com/search).
 
 Import specific repositories by name:
 ```bash
