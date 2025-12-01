@@ -830,36 +830,51 @@ fn test_import_requires_query_or_positional() {
 }
 
 #[test]
-#[ignore] // This test makes real GitHub API calls and may require authentication
 fn test_import_query_public_repos() {
+    // Skip test if no GitHub token is available
+    let token = std::env::var("GITHUB_TOKEN").ok().or_else(|| {
+        Command::new("gh")
+            .args(["auth", "token"])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    });
+
+    if token.is_none() {
+        eprintln!("Skipping test: no GitHub token available");
+        return;
+    }
+
     let env = TestEnv::new("import_query_public");
 
     let workspace = env.create_workspace("Test workspace for query import");
 
-    // Try to import public repos from stefreak user
-    // This should work even without a token for public repos, but we'll provide one if available
+    // Import public repos from stefreak user (dry-run to avoid cloning)
     let output = env.run_nut(
-        &["import", "--query", "user:stefreak", "--dry-run"],
+        &[
+            "import",
+            "--query",
+            "user:stefreak",
+            "--dry-run",
+            "--github-token",
+            &token.unwrap(),
+        ],
         Some(workspace.id),
     );
 
-    // If gh is authenticated or API is accessible, this should succeed
-    // Otherwise, it will fail with token error which is acceptable
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "import with query should succeed for public repos: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    if output.status.success() {
-        // If successful, we should see some repository names in stdout
-        assert!(
-            !stdout.is_empty(),
-            "Output should contain repository names when query succeeds"
-        );
-    } else {
-        // If failed, it should be due to missing token
-        assert!(
-            stderr.contains("token") || stderr.contains("authenticated"),
-            "Failure should be due to missing token. Got: {}",
-            stderr
-        );
-    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.is_empty(),
+        "Output should contain repository names, got:\n{}",
+        stdout
+    );
 }

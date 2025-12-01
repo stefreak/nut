@@ -344,18 +344,11 @@ async fn main() -> Result<()> {
             full_repository_names,
         }) => {
             // Validate arguments first before checking for token
-            match (query, full_repository_names) {
-                (Some(_), names) if !names.is_empty() => {
-                    // Both query and positional args provided - error
-                    return Err(NutError::QueryAndPositionalArgsConflict.into());
-                }
-                (None, names) if names.is_empty() => {
-                    // Neither query nor positional args provided - error
-                    return Err(NutError::InvalidArgumentCombination.into());
-                }
-                _ => {
-                    // Valid combination, proceed
-                }
+            if query.is_some() && !full_repository_names.is_empty() {
+                return Err(NutError::QueryAndPositionalArgsConflict.into());
+            }
+            if query.is_none() && full_repository_names.is_empty() {
+                return Err(NutError::InvalidArgumentCombination.into());
             }
 
             let workspace = get_workspace(workspace)?;
@@ -366,47 +359,44 @@ async fn main() -> Result<()> {
                 .user_access_token(token.into_boxed_str())
                 .into_diagnostic()?;
 
-            match (query, full_repository_names) {
-                (Some(q), _) => {
-                    // Use search API with query
-                    let mut page = crab
-                        .search()
-                        .repositories(q)
-                        .send()
-                        .await
-                        .into_diagnostic()?;
+            if let Some(q) = query {
+                // Use search API with query
+                let mut page = crab
+                    .search()
+                    .repositories(q)
+                    .send()
+                    .await
+                    .into_diagnostic()?;
 
-                    loop {
-                        for details in page.items {
-                            process_repo(&workspace.path, &crab, details, *dry_run).await?;
-                        }
-
-                        page = match crab
-                            .get_page::<octocrab::models::Repository>(&page.next)
-                            .await
-                            .into_diagnostic()?
-                        {
-                            Some(next_page) => next_page,
-                            None => break,
-                        }
-                    }
-                }
-                (None, names) => {
-                    // Import specific repositories by full name
-                    for full_name in names {
-                        let parts: Vec<&str> = full_name.split('/').collect();
-                        if parts.len() != 2 {
-                            return Err(NutError::InvalidRepositoryName {
-                                name: full_name.clone(),
-                            }
-                            .into());
-                        }
-                        let owner = parts[0];
-                        let repo = parts[1];
-                        let repo_handler = crab.repos(owner, repo);
-                        let details = repo_handler.get().await.into_diagnostic()?;
+                loop {
+                    for details in page.items {
                         process_repo(&workspace.path, &crab, details, *dry_run).await?;
                     }
+
+                    page = match crab
+                        .get_page::<octocrab::models::Repository>(&page.next)
+                        .await
+                        .into_diagnostic()?
+                    {
+                        Some(next_page) => next_page,
+                        None => break,
+                    }
+                }
+            } else {
+                // Import specific repositories by full name
+                for full_name in full_repository_names {
+                    let parts: Vec<&str> = full_name.split('/').collect();
+                    if parts.len() != 2 {
+                        return Err(NutError::InvalidRepositoryName {
+                            name: full_name.clone(),
+                        }
+                        .into());
+                    }
+                    let owner = parts[0];
+                    let repo = parts[1];
+                    let repo_handler = crab.repos(owner, repo);
+                    let details = repo_handler.get().await.into_diagnostic()?;
+                    process_repo(&workspace.path, &crab, details, *dry_run).await?;
                 }
             }
         }
