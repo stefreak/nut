@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/stefreak/nut/compare/v0.2.3...v0.2.4) - 2025-12-01
+
+### <!-- 0 -->New features
+
+- *(import)* replace `--skip-*` and `--include-*` options with `--query` option supporting the full GitHub search syntax ([#29](https://github.com/stefreak/nut/pull/29))
+
 ## [0.2.3](https://github.com/stefreak/nut/compare/v0.2.2...v0.2.3) - 2025-11-30
 
 ### <!-- 0 -->New features
