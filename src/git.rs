@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
 use miette::IntoDiagnostic;
+use rayon::prelude::*;
 
 pub struct RepoStatus {
     pub path_relative: OsString,
@@ -301,13 +302,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 // use walkdir crate to recursively find git repos (by looking for .git directories)
 pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
-    let mut statuses = Vec::new();
-
-    for repo_path_relative in repos {
-        if let Some(status) = get_repo_status(workspace_dir, &repo_path_relative) {
-            statuses.push(status);
-        }
-    }
+    
+    // Process repositories in parallel using rayon
+    let mut statuses: Vec<RepoStatus> = repos
+        .par_iter()
+        .filter_map(|repo_path_relative| get_repo_status(workspace_dir, repo_path_relative))
+        .collect();
 
     // Sort by repository name for consistent output
     statuses.sort_by(|a, b| a.path_relative.cmp(&b.path_relative));

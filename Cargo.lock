@@ -1336,6 +1336,7 @@ dependencies = [
  "futures-util",
  "miette",
  "octocrab",
+ "rayon",
  "thiserror",
  "tokio",
  "ulid",
