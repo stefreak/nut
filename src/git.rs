@@ -332,13 +332,17 @@ pub async fn get_repo_status(
 // use walkdir crate to recursively find git repos (by looking for .git directories)
 pub async fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
-    let mut statuses = Vec::new();
-
-    for repo_path_relative in repos {
-        if let Some(status) = get_repo_status(workspace_dir, &repo_path_relative).await {
-            statuses.push(status);
-        }
-    }
+    
+    // Process all repositories concurrently for better performance
+    let futures: Vec<_> = repos
+        .into_iter()
+        .map(|repo_path_relative| async move {
+            get_repo_status(workspace_dir, &repo_path_relative).await
+        })
+        .collect();
+    
+    let results = futures_util::future::join_all(futures).await;
+    let mut statuses: Vec<RepoStatus> = results.into_iter().flatten().collect();
 
     // Sort by repository name for consistent output
     statuses.sort_by(|a, b| a.path_relative.cmp(&b.path_relative));
