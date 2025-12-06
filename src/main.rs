@@ -138,7 +138,20 @@ async fn process_repo(
             .map(|c| c.sha.clone()),
         None => None,
     };
-    git::clone(workspace_path, host, full_name, &latest_commit, default_branch)?;
+
+    // Extract just the host part for git operations (strip http:// or https://)
+    let git_host = host
+        .strip_prefix("https://")
+        .or_else(|| host.strip_prefix("http://"))
+        .unwrap_or(host);
+
+    git::clone(
+        workspace_path,
+        git_host,
+        full_name,
+        &latest_commit,
+        default_branch,
+    )?;
     Ok(())
 }
 
@@ -362,9 +375,16 @@ async fn main() -> Result<()> {
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
+            // Construct the API base URL
+            // For github.com, use the standard API endpoint
+            // For custom hosts, assume they follow GitHub Enterprise format
             let base_url = if github_host == "github.com" {
                 "https://api.github.com".to_string()
+            } else if github_host.starts_with("http://") || github_host.starts_with("https://") {
+                // If full URL provided, use it as-is (useful for testing)
+                github_host.trim_end_matches('/').to_string()
             } else {
+                // Assume HTTPS for GitHub Enterprise
                 format!("https://{}/api/v3", github_host)
             };
 
@@ -386,7 +406,8 @@ async fn main() -> Result<()> {
 
                 loop {
                     for details in page.items {
-                        process_repo(&workspace.path, &crab, details, *dry_run, github_host).await?;
+                        process_repo(&workspace.path, &crab, details, *dry_run, github_host)
+                            .await?;
                     }
 
                     page = match crab
