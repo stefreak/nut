@@ -3,6 +3,7 @@ mod enter;
 mod error;
 mod gh;
 mod git;
+mod validation;
 mod workspace;
 
 use std::ffi::OsStr;
@@ -351,13 +352,7 @@ async fn main() -> Result<()> {
             query,
             full_repository_names,
         }) => {
-            // Validate arguments first before checking for token
-            if query.is_some() && !full_repository_names.is_empty() {
-                return Err(NutError::QueryAndPositionalArgsConflict.into());
-            }
-            if query.is_none() && full_repository_names.is_empty() {
-                return Err(NutError::InvalidArgumentCombination.into());
-            }
+            validation::validate_import_args(query, full_repository_names)?;
 
             let workspace = Workspace::resolve(workspace).await?;
 
@@ -393,15 +388,7 @@ async fn main() -> Result<()> {
             } else {
                 // Import specific repositories by full name
                 for full_name in full_repository_names {
-                    let parts: Vec<&str> = full_name.split('/').collect();
-                    if parts.len() != 2 {
-                        return Err(NutError::InvalidRepositoryName {
-                            name: full_name.clone(),
-                        }
-                        .into());
-                    }
-                    let owner = parts[0];
-                    let repo = parts[1];
+                    let (owner, repo) = validation::parse_repository_name(full_name)?;
                     let repo_handler = crab.repos(owner, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
                     process_repo(&workspace.path, &crab, details, *dry_run).await?;
