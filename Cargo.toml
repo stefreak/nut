@@ -1,6 +1,6 @@
 [package]
 name = "nut-workspace"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 description = "A workspace manager for working with multiple GitHub repositories simultaneously."
 license-file = "LICENSE.md"
