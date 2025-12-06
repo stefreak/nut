@@ -1,7 +1,6 @@
 use std::ffi::{OsStr, OsString};
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
 
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
@@ -40,11 +39,12 @@ impl<'a> GitCommand<'a> {
         self
     }
 
-    fn output(self) -> Result<Output> {
-        let output = Command::new("git")
+    async fn output(self) -> Result<std::process::Output> {
+        let output = tokio::process::Command::new("git")
             .current_dir(self.working_dir)
             .args(&self.args)
             .output()
+            .await
             .map_err(|e| NutError::GitCommandFailed {
                 command: format!("git {}", self.args.join(" ")),
                 source: e,
@@ -52,11 +52,12 @@ impl<'a> GitCommand<'a> {
         Ok(output)
     }
 
-    fn run(self) -> Result<()> {
-        let status = Command::new("git")
+    async fn run(self) -> Result<()> {
+        let status = tokio::process::Command::new("git")
             .current_dir(self.working_dir)
             .args(&self.args)
             .status()
+            .await
             .map_err(|e| NutError::GitCommandFailed {
                 command: format!("git {}", self.args.join(" ")),
                 source: e,
@@ -70,14 +71,14 @@ impl<'a> GitCommand<'a> {
         Ok(())
     }
 
-    fn output_string(self) -> Result<String> {
-        let output = self.output()?;
+    async fn output_string(self) -> Result<String> {
+        let output = self.output().await?;
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 }
 
 /// Update an existing workspace repository if needed
-fn update_workspace_repo(
+async fn update_workspace_repo(
     workspace_repo_dir: &Path,
     default_branch: &str,
     latest_commit: &str,
@@ -85,26 +86,32 @@ fn update_workspace_repo(
     let origin_branch = format!("origin/{default_branch}");
     let workspace_commit = GitCommand::new(workspace_repo_dir)
         .args(&["rev-parse", &origin_branch])
-        .output_string()?;
+        .output_string()
+        .await?;
 
     if workspace_commit != latest_commit {
         let current_branch = GitCommand::new(workspace_repo_dir)
             .args(&["branch", "--show-current"])
-            .output_string()?;
+            .output_string()
+            .await?;
 
         if current_branch != default_branch {
             GitCommand::new(workspace_repo_dir)
                 .args(&["fetch", "origin"])
-                .run()?;
+                .run()
+                .await?;
         } else {
-            GitCommand::new(workspace_repo_dir).arg("pull").run()?;
+            GitCommand::new(workspace_repo_dir)
+                .arg("pull")
+                .run()
+                .await?;
         }
     }
     Ok(())
 }
 
 /// Ensure cache repository exists and is up to date
-fn ensure_cache_repo(
+async fn ensure_cache_repo(
     cache_dir: &Path,
     full_name: &str,
     clone_url: &str,
@@ -117,27 +124,32 @@ fn ensure_cache_repo(
         let origin_branch = format!("origin/{default_branch}");
         let cache_commit = GitCommand::new(&cache_repo_dir)
             .args(&["rev-parse", &origin_branch])
-            .output_string()?;
+            .output_string()
+            .await?;
 
         if cache_commit != latest_commit {
             GitCommand::new(&cache_repo_dir)
                 .args(&["remote", "update", "--prune"])
-                .run()?;
+                .run()
+                .await?;
         }
     } else {
-        std::fs::create_dir_all(cache_dir).map_err(|e| NutError::CreateDirectoryFailed {
-            path: cache_dir.to_path_buf(),
-            source: e,
+        tokio::fs::create_dir_all(cache_dir).await.map_err(|e| {
+            NutError::CreateDirectoryFailed {
+                path: cache_dir.to_path_buf(),
+                source: e,
+            }
         })?;
         GitCommand::new(cache_dir)
             .args(&["clone", clone_url, full_name, "--mirror", "--bare"])
-            .run()?;
+            .run()
+            .await?;
     }
     Ok(())
 }
 
 /// Clone from cache to workspace
-fn clone_from_cache_to_workspace(
+async fn clone_from_cache_to_workspace(
     workspace_dir: &Path,
     cache_dir: &Path,
     full_name: &str,
@@ -148,17 +160,19 @@ fn clone_from_cache_to_workspace(
 
     GitCommand::new(workspace_dir)
         .args(&["clone", "--local", cache_dir_str, full_name])
-        .run()?;
+        .run()
+        .await?;
 
     let workspace_repo_dir = workspace_dir.join(full_name);
     GitCommand::new(&workspace_repo_dir)
         .args(&["remote", "set-url", "origin", clone_url])
-        .run()?;
+        .run()
+        .await?;
 
     Ok(())
 }
 
-pub fn clone(
+pub async fn clone(
     workspace_dir: &Path,
     full_name: &str,
     latest_commit: &Option<String>,
@@ -166,17 +180,17 @@ pub fn clone(
 ) -> Result<()> {
     // TODO: add support for other hosts, e.g. github enterprise and other git hosting providers
     let host = "github.com";
-    let git_protocol = gh::get_git_protocol_with_fallback(host);
+    let git_protocol = gh::get_git_protocol_with_fallback(host).await;
     let clone_url = git_protocol.to_clone_url(host, full_name);
 
-    let cache_dir = dirs::get_cache_dir()?.join("github");
+    let cache_dir = dirs::get_cache_dir().await?.join("github");
 
     // If we have commit info, handle updates intelligently
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
         // Update existing workspace repository if it exists
         let workspace_repo_dir = workspace_dir.join(full_name);
         if workspace_repo_dir.exists() {
-            update_workspace_repo(&workspace_repo_dir, default_branch, latest_commit)?;
+            update_workspace_repo(&workspace_repo_dir, default_branch, latest_commit).await?;
             return Ok(());
         }
 
@@ -187,7 +201,8 @@ pub fn clone(
             &clone_url,
             default_branch,
             latest_commit,
-        )?;
+        )
+        .await?;
     }
 
     // Repository might already exist (e.g., empty repo)
@@ -196,12 +211,15 @@ pub fn clone(
     }
 
     // Clone from cache to workspace
-    clone_from_cache_to_workspace(workspace_dir, &cache_dir, full_name, &clone_url)?;
+    clone_from_cache_to_workspace(workspace_dir, &cache_dir, full_name, &clone_url).await?;
 
     Ok(())
 }
 
-pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Option<RepoStatus> {
+pub async fn get_repo_status(
+    workspace_dir: &Path,
+    repo_path_relative: &PathBuf,
+) -> Option<RepoStatus> {
     let abs_path = workspace_dir.join(repo_path_relative);
 
     // Check if the path is a git repository
@@ -210,11 +228,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
     }
 
     // Get current branch
-    let branch_output = std::process::Command::new("git")
+    let branch_output = tokio::process::Command::new("git")
         .current_dir(&abs_path)
         .arg("branch")
         .arg("--show-current")
         .output()
+        .await
         .ok()?;
 
     if !branch_output.status.success() {
@@ -227,12 +246,13 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 
     // Handle detached HEAD state
     if current_branch.is_empty() {
-        let rev_output = std::process::Command::new("git")
+        let rev_output = tokio::process::Command::new("git")
             .current_dir(&abs_path)
             .arg("rev-parse")
             .arg("--short")
             .arg("HEAD")
             .output()
+            .await
             .ok()?;
         if rev_output.status.success() {
             let commit = String::from_utf8_lossy(&rev_output.stdout)
@@ -245,11 +265,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
     }
 
     // Get git status porcelain output
-    let status_output = std::process::Command::new("git")
+    let status_output = tokio::process::Command::new("git")
         .current_dir(&abs_path)
         .arg("status")
         .arg("--porcelain")
         .output()
+        .await
         .ok()?;
 
     if !status_output.status.success() {
@@ -309,12 +330,12 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 }
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
-pub fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
+pub async fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
     let mut statuses = Vec::new();
 
     for repo_path_relative in repos {
-        if let Some(status) = get_repo_status(workspace_dir, &repo_path_relative) {
+        if let Some(status) = get_repo_status(workspace_dir, &repo_path_relative).await {
             statuses.push(status);
         }
     }
@@ -359,7 +380,7 @@ fn find_repositories(workspace_dir: &Path) -> Result<Vec<PathBuf>> {
 ///
 /// Discovers all git repositories in the workspace and executes the specified command
 /// in each one. The command is executed directly (not in a shell).
-pub fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result<()> {
+pub async fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result<()> {
     let repos = find_repositories(workspace_dir)?;
 
     if repos.is_empty() {
@@ -374,10 +395,11 @@ pub fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result<()> {
     for repo_path_relative in repos {
         println!("==> {} <==", repo_path_relative.display());
 
-        let status = std::process::Command::new(command_name)
+        let status = tokio::process::Command::new(command_name)
             .args(args)
             .current_dir(workspace_dir.join(&repo_path_relative))
             .status()
+            .await
             .map_err(|e| NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
                 source: e,

@@ -134,7 +134,7 @@ async fn process_repo(
             .map(|c| c.sha.clone()),
         None => None,
     };
-    git::clone(workspace_path, full_name, &latest_commit, default_branch)?;
+    git::clone(workspace_path, full_name, &latest_commit, default_branch).await?;
     Ok(())
 }
 
@@ -162,35 +162,37 @@ async fn main() -> Result<()> {
     // matches just as you would the top level cmd
     match &cli.command {
         Some(Commands::Create { description }) => {
-            if enter::get_entered_workspace().is_ok() {
+            if enter::get_entered_workspace().await.is_ok() {
                 return Err(NutError::AlreadyInWorkspace.into());
             }
 
-            let data_local_dir = dirs::get_data_local_dir()?;
+            let data_local_dir = dirs::get_data_local_dir().await?;
 
             let ulid = ulid::Ulid::new();
 
             let workspace_path = data_local_dir.join(ulid.to_string()).join(".nut");
-            std::fs::create_dir_all(&workspace_path).map_err(|e| {
-                NutError::CreateDirectoryFailed {
+            tokio::fs::create_dir_all(&workspace_path)
+                .await
+                .map_err(|e| NutError::CreateDirectoryFailed {
                     path: workspace_path.clone(),
                     source: e,
-                }
-            })?;
+                })?;
 
             // write description file
             let desc_path = data_local_dir
                 .join(ulid.to_string())
                 .join(".nut/description");
-            std::fs::write(&desc_path, description).map_err(|e| NutError::WriteFileFailed {
-                path: desc_path,
-                source: e,
-            })?;
+            tokio::fs::write(&desc_path, description)
+                .await
+                .map_err(|e| NutError::WriteFileFailed {
+                    path: desc_path,
+                    source: e,
+                })?;
 
-            enter::enter(ulid)?;
+            enter::enter(ulid).await?;
         }
         Some(Commands::Enter { id }) => {
-            if enter::get_entered_workspace().is_ok() {
+            if enter::get_entered_workspace().await.is_ok() {
                 return Err(NutError::AlreadyInWorkspace.into());
             }
 
@@ -198,22 +200,22 @@ async fn main() -> Result<()> {
                 id: id.clone(),
                 source: e,
             })?;
-            enter::enter(ulid)?;
+            enter::enter(ulid).await?;
         }
         Some(Commands::List {}) => {
-            let data_local_dir = dirs::get_data_local_dir()?;
-            let entries =
-                std::fs::read_dir(&data_local_dir).map_err(|e| NutError::ReadDirectoryFailed {
+            let data_local_dir = dirs::get_data_local_dir().await?;
+            let mut entries = tokio::fs::read_dir(&data_local_dir).await.map_err(|e| {
+                NutError::ReadDirectoryFailed {
                     path: data_local_dir.clone(),
                     source: e,
-                })?;
+                }
+            })?;
 
             // Collect all workspaces with their metadata
             let mut workspaces: Vec<(Ulid, DateTime<Utc>, String)> = Vec::new();
 
-            for entry in entries {
-                let entry = entry.into_diagnostic()?;
-                if entry.file_type().into_diagnostic()?.is_dir() {
+            while let Some(entry) = entries.next_entry().await.into_diagnostic()? {
+                if entry.file_type().await.into_diagnostic()?.is_dir() {
                     let ulid_str = entry
                         .file_name()
                         .into_string()
@@ -221,7 +223,8 @@ async fn main() -> Result<()> {
                     if let Ok(ulid) = Ulid::from_string(&ulid_str) {
                         let datetime: DateTime<Utc> = ulid.datetime().into();
                         let desc_path = entry.path().join(".nut/description");
-                        let description = std::fs::read_to_string(&desc_path)
+                        let description = tokio::fs::read_to_string(&desc_path)
+                            .await
                             .unwrap_or("(missing description)".to_string());
                         workspaces.push((ulid, datetime, description));
                     }
@@ -240,8 +243,8 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::Status { workspace }) => {
-            let workspace = Workspace::resolve(workspace)?;
-            let statuses = git::get_all_repos_status(&workspace.path)?;
+            let workspace = Workspace::resolve(workspace).await?;
+            let statuses = git::get_all_repos_status(&workspace.path).await?;
 
             // Count repositories with and without changes
             let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();
@@ -293,27 +296,29 @@ async fn main() -> Result<()> {
             script,
             command,
         }) => {
-            let workspace = Workspace::resolve(workspace)?;
+            let workspace = Workspace::resolve(workspace).await?;
 
             // Handle script mode
             if let Some(script_path) = script {
-                let absolute_script_path = std::fs::canonicalize(script_path).map_err(|e| {
-                    NutError::ScriptPathInvalid {
-                        path: script_path.display().to_string(),
-                        source: e,
-                    }
-                })?;
-
-                // only for unix
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    let metadata = std::fs::metadata(&absolute_script_path).map_err(|e| {
+                let absolute_script_path =
+                    tokio::fs::canonicalize(script_path).await.map_err(|e| {
                         NutError::ScriptPathInvalid {
                             path: script_path.display().to_string(),
                             source: e,
                         }
                     })?;
+
+                // only for unix
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let metadata =
+                        tokio::fs::metadata(&absolute_script_path)
+                            .await
+                            .map_err(|e| NutError::ScriptPathInvalid {
+                                path: script_path.display().to_string(),
+                                source: e,
+                            })?;
                     let permissions = metadata.permissions();
                     if (permissions.mode() & 0o111) == 0 {
                         return Err(NutError::ScriptNotExecutable {
@@ -325,7 +330,7 @@ async fn main() -> Result<()> {
 
                 let mut args: Vec<&OsStr> = vec![absolute_script_path.as_os_str()];
                 args.extend(command.iter().map(|s| s.as_os_str()));
-                git::apply_command(&workspace.path, args)?;
+                git::apply_command(&workspace.path, args).await?;
             } else {
                 // Direct command mode
                 if command.is_empty() {
@@ -335,7 +340,8 @@ async fn main() -> Result<()> {
                 git::apply_command(
                     &workspace.path,
                     command.iter().map(|s| s.as_os_str()).collect(),
-                )?;
+                )
+                .await?;
             }
         }
         Some(Commands::Import {
@@ -353,9 +359,9 @@ async fn main() -> Result<()> {
                 return Err(NutError::InvalidArgumentCombination.into());
             }
 
-            let workspace = Workspace::resolve(workspace)?;
+            let workspace = Workspace::resolve(workspace).await?;
 
-            let token = gh::get_token_with_fallback(github_token.as_deref())?;
+            let token = gh::get_token_with_fallback(github_token.as_deref()).await?;
 
             let crab = octocrab::instance()
                 .user_access_token(token.into_boxed_str())
@@ -403,13 +409,13 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::CacheDir {}) => {
-            write_path_to_stdout(get_cache_dir()?)?;
+            write_path_to_stdout(get_cache_dir().await?)?;
         }
         Some(Commands::DataDir {}) => {
-            write_path_to_stdout(get_data_local_dir()?)?;
+            write_path_to_stdout(get_data_local_dir().await?)?;
         }
         Some(Commands::WorkspaceDir { workspace }) => {
-            let workspace = Workspace::resolve(workspace)?;
+            let workspace = Workspace::resolve(workspace).await?;
             write_path_to_stdout(workspace.path.clone())?;
         }
         None => {}

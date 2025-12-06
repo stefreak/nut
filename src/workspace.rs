@@ -12,16 +12,16 @@ pub struct Workspace {
 
 impl Workspace {
     /// Get workspace from explicit ID or infer from current directory
-    pub fn resolve(workspace_arg: &Option<String>) -> Result<Self> {
+    pub async fn resolve(workspace_arg: &Option<String>) -> Result<Self> {
         let ulid = match workspace_arg {
             Some(id) => id.parse().map_err(|e| NutError::InvalidWorkspaceId {
                 id: id.clone(),
                 source: e,
             })?,
-            None => enter::get_entered_workspace()?,
+            None => enter::get_entered_workspace().await?,
         };
 
-        let workspace_dir = dirs::get_data_local_dir()?.join(ulid.to_string());
+        let workspace_dir = dirs::get_data_local_dir().await?.join(ulid.to_string());
 
         Ok(Workspace {
             id: ulid,
