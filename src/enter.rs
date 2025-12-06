@@ -1,8 +1,8 @@
 use crate::dirs::get_data_local_dir;
 use crate::error::{NutError, Result};
 
-pub fn enter(ulid: ulid::Ulid) -> Result<()> {
-    let data_local_dir = get_data_local_dir()?;
+pub async fn enter(ulid: ulid::Ulid) -> Result<()> {
+    let data_local_dir = get_data_local_dir().await?;
 
     // start shell in directory
     let workspace_dir = data_local_dir.join(ulid.to_string());
@@ -25,18 +25,19 @@ pub fn enter(ulid: ulid::Ulid) -> Result<()> {
     let nut_binary_dir_str = nut_binary_dir.to_str().ok_or(NutError::InvalidUtf8)?;
     let new_path = format!("{}:{}", nut_binary_dir_str, path);
 
-    std::process::Command::new(shell)
+    tokio::process::Command::new(shell)
         .current_dir(&workspace_dir)
         .env("PATH", new_path)
         .status()
+        .await
         .map_err(|e| NutError::ShellSpawnFailed { source: e })?;
 
     Ok(())
 }
 
-pub fn get_entered_workspace() -> Result<ulid::Ulid> {
+pub async fn get_entered_workspace() -> Result<ulid::Ulid> {
     // if in the workspace directory
-    let data_local_dir = get_data_local_dir()?;
+    let data_local_dir = get_data_local_dir().await?;
     let current_dir = std::env::current_dir()
         .and_then(|d| d.canonicalize())
         .map_err(|e| NutError::GetCurrentDirectoryFailed { source: e })?;
