@@ -1,6 +1,7 @@
 use std::ffi::{OsStr, OsString};
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
 
 use crate::error::{NutError, Result};
 use crate::{dirs, gh};
@@ -15,8 +16,150 @@ pub struct RepoStatus {
     pub current_branch: String,
 }
 
+/// Helper to execute git commands with consistent error handling
+struct GitCommand<'a> {
+    args: Vec<&'a str>,
+    working_dir: &'a Path,
+}
+
+impl<'a> GitCommand<'a> {
+    fn new(working_dir: &'a Path) -> Self {
+        Self {
+            args: Vec::new(),
+            working_dir,
+        }
+    }
+
+    fn arg(mut self, arg: &'a str) -> Self {
+        self.args.push(arg);
+        self
+    }
+
+    fn args(mut self, args: &[&'a str]) -> Self {
+        self.args.extend_from_slice(args);
+        self
+    }
+
+    fn output(self) -> Result<Output> {
+        let output = Command::new("git")
+            .current_dir(self.working_dir)
+            .args(&self.args)
+            .output()
+            .map_err(|e| NutError::GitCommandFailed {
+                command: format!("git {}", self.args.join(" ")),
+                source: e,
+            })?;
+        Ok(output)
+    }
+
+    fn run(self) -> Result<()> {
+        let status = Command::new("git")
+            .current_dir(self.working_dir)
+            .args(&self.args)
+            .status()
+            .map_err(|e| NutError::GitCommandFailed {
+                command: format!("git {}", self.args.join(" ")),
+                source: e,
+            })?;
+
+        if !status.success() {
+            return Err(NutError::GitOperationFailed {
+                operation: format!("git {}", self.args.join(" ")),
+            });
+        }
+        Ok(())
+    }
+
+    fn output_string(self) -> Result<String> {
+        let output = self.output()?;
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+}
+
+/// Update an existing workspace repository if needed
+fn update_workspace_repo(
+    workspace_repo_dir: &Path,
+    default_branch: &str,
+    latest_commit: &str,
+) -> Result<()> {
+    let origin_branch = format!("origin/{default_branch}");
+    let workspace_commit = GitCommand::new(workspace_repo_dir)
+        .args(&["rev-parse", &origin_branch])
+        .output_string()?;
+
+    if workspace_commit != latest_commit {
+        let current_branch = GitCommand::new(workspace_repo_dir)
+            .args(&["branch", "--show-current"])
+            .output_string()?;
+
+        if current_branch != default_branch {
+            GitCommand::new(workspace_repo_dir)
+                .args(&["fetch", "origin"])
+                .run()?;
+        } else {
+            GitCommand::new(workspace_repo_dir).arg("pull").run()?;
+        }
+    }
+    Ok(())
+}
+
+/// Ensure cache repository exists and is up to date
+fn ensure_cache_repo(
+    cache_dir: &Path,
+    full_name: &str,
+    clone_url: &str,
+    default_branch: &str,
+    latest_commit: &str,
+) -> Result<()> {
+    let cache_repo_dir = cache_dir.join(full_name);
+
+    if cache_repo_dir.exists() {
+        let origin_branch = format!("origin/{default_branch}");
+        let cache_commit = GitCommand::new(&cache_repo_dir)
+            .args(&["rev-parse", &origin_branch])
+            .output_string()?;
+
+        if cache_commit != latest_commit {
+            GitCommand::new(&cache_repo_dir)
+                .args(&["remote", "update", "--prune"])
+                .run()?;
+        }
+    } else {
+        std::fs::create_dir_all(cache_dir).map_err(|e| NutError::CreateDirectoryFailed {
+            path: cache_dir.to_path_buf(),
+            source: e,
+        })?;
+        GitCommand::new(cache_dir)
+            .args(&["clone", clone_url, full_name, "--mirror", "--bare"])
+            .run()?;
+    }
+    Ok(())
+}
+
+/// Clone from cache to workspace
+fn clone_from_cache_to_workspace(
+    workspace_dir: &Path,
+    cache_dir: &Path,
+    full_name: &str,
+    clone_url: &str,
+) -> Result<()> {
+    let cache_repo_path = cache_dir.join(full_name);
+    let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
+
+    GitCommand::new(workspace_dir)
+        .args(&["clone", "--local", cache_dir_str, full_name])
+        .run()?;
+
+    let workspace_repo_dir = workspace_dir.join(full_name);
+    GitCommand::new(&workspace_repo_dir)
+        .args(&["remote", "set-url", "origin", clone_url])
+        .run()?;
+
+    Ok(())
+}
+
 pub fn clone(
-    workspace_dir: &PathBuf,
+    workspace_dir: &Path,
     full_name: &str,
     latest_commit: &Option<String>,
     default_branch: &Option<String>,
@@ -28,165 +171,32 @@ pub fn clone(
 
     let cache_dir = dirs::get_cache_dir()?.join("github");
 
+    // If we have commit info, handle updates intelligently
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
-        if workspace_dir.join(full_name).exists() {
-            let workspace_repo_dir = workspace_dir.join(full_name);
-
-            // get latest commit in default branch
-            let output = std::process::Command::new("git")
-                .current_dir(&workspace_repo_dir)
-                .arg("rev-parse")
-                .arg(format!("origin/{default_branch}"))
-                .output()
-                .map_err(|e| NutError::GitCommandFailed {
-                    command: "git rev-parse".to_string(),
-                    source: e,
-                })?;
-            let cache_latest_commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if cache_latest_commit != *latest_commit {
-                // get current branch
-                let output = std::process::Command::new("git")
-                    .current_dir(&workspace_repo_dir)
-                    .arg("branch")
-                    .arg("--show-current")
-                    .output()
-                    .map_err(|e| NutError::GitCommandFailed {
-                        command: "git branch".to_string(),
-                        source: e,
-                    })?;
-                let current_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-                if current_branch != *default_branch {
-                    let status = std::process::Command::new("git")
-                        .current_dir(&workspace_repo_dir)
-                        .arg("fetch")
-                        .arg("origin")
-                        .status()
-                        .map_err(|e| NutError::GitCommandFailed {
-                            command: "git fetch".to_string(),
-                            source: e,
-                        })?;
-                    if !status.success() {
-                        return Err(NutError::GitOperationFailed {
-                            operation: "fetch origin in workspace repository".to_string(),
-                        });
-                    }
-                } else {
-                    let status = std::process::Command::new("git")
-                        .current_dir(&workspace_repo_dir)
-                        .arg("pull")
-                        .status()
-                        .map_err(|e| NutError::GitCommandFailed {
-                            command: "git pull".to_string(),
-                            source: e,
-                        })?;
-                    if !status.success() {
-                        return Err(NutError::GitOperationFailed {
-                            operation: "pull in workspace repository".to_string(),
-                        });
-                    }
-                }
-            }
+        // Update existing workspace repository if it exists
+        let workspace_repo_dir = workspace_dir.join(full_name);
+        if workspace_repo_dir.exists() {
+            update_workspace_repo(&workspace_repo_dir, default_branch, latest_commit)?;
             return Ok(());
         }
 
-        if cache_dir.join(full_name).exists() {
-            let cache_repo_dir = cache_dir.join(full_name);
-
-            // get latest commit in default branch
-            let output = std::process::Command::new("git")
-                .current_dir(&cache_repo_dir)
-                .arg("rev-parse")
-                .arg(format!("origin/{default_branch}"))
-                .output()
-                .map_err(|e| NutError::GitCommandFailed {
-                    command: "git rev-parse".to_string(),
-                    source: e,
-                })?;
-            let cache_latest_commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if cache_latest_commit != *latest_commit {
-                let status = std::process::Command::new("git")
-                    .current_dir(&cache_repo_dir)
-                    .arg("remote")
-                    .arg("update")
-                    .arg("--prune")
-                    .status()
-                    .map_err(|e| NutError::GitCommandFailed {
-                        command: "git remote update".to_string(),
-                        source: e,
-                    })?;
-                if !status.success() {
-                    return Err(NutError::GitOperationFailed {
-                        operation: "update cache repository".to_string(),
-                    });
-                }
-            }
-        } else {
-            std::fs::create_dir_all(&cache_dir).map_err(|e| NutError::CreateDirectoryFailed {
-                path: cache_dir.clone(),
-                source: e,
-            })?;
-            let status = std::process::Command::new("git")
-                .current_dir(&cache_dir)
-                .arg("clone")
-                .arg(&clone_url)
-                .arg(full_name)
-                .arg("--mirror")
-                .arg("--bare")
-                .status()
-                .map_err(|e| NutError::GitCommandFailed {
-                    command: "git clone".to_string(),
-                    source: e,
-                })?;
-            if !status.success() {
-                return Err(NutError::GitOperationFailed {
-                    operation: "clone cache repository".to_string(),
-                });
-            }
-        }
+        // Ensure cache repository is up to date
+        ensure_cache_repo(
+            &cache_dir,
+            full_name,
+            &clone_url,
+            default_branch,
+            latest_commit,
+        )?;
     }
 
-    // this can happen if the repository is empty
+    // Repository might already exist (e.g., empty repo)
     if workspace_dir.join(full_name).exists() {
         return Ok(());
     }
 
-    let cache_repo_path = cache_dir.join(full_name);
-    let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
-    let status = std::process::Command::new("git")
-        .current_dir(workspace_dir)
-        .arg("clone")
-        .arg("--local")
-        .arg(cache_dir_str)
-        .arg(full_name)
-        .status()
-        .map_err(|e| NutError::GitCommandFailed {
-            command: "git clone".to_string(),
-            source: e,
-        })?;
-    if !status.success() {
-        return Err(NutError::GitOperationFailed {
-            operation: "clone workspace repository".to_string(),
-        });
-    }
-
-    let workspace_repo_dir = workspace_dir.join(full_name);
-    let status = std::process::Command::new("git")
-        .current_dir(&workspace_repo_dir)
-        .arg("remote")
-        .arg("set-url")
-        .arg("origin")
-        .arg(&clone_url)
-        .status()
-        .map_err(|e| NutError::GitCommandFailed {
-            command: "git remote set-url".to_string(),
-            source: e,
-        })?;
-    if !status.success() {
-        return Err(NutError::GitOperationFailed {
-            operation: "set remote url in workspace repository".to_string(),
-        });
-    }
+    // Clone from cache to workspace
+    clone_from_cache_to_workspace(workspace_dir, &cache_dir, full_name, &clone_url)?;
 
     Ok(())
 }
@@ -299,7 +309,7 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 }
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
-pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> {
+pub fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
     let mut statuses = Vec::new();
 
@@ -319,7 +329,7 @@ pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> 
 ///
 /// Searches for directories containing a `.git` subdirectory within the workspace,
 /// up to a maximum depth of 3 levels. Returns a sorted list of repository paths.
-fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
+fn find_repositories(workspace_dir: &Path) -> Result<Vec<PathBuf>> {
     let mut repos = Vec::new();
 
     let walker = walkdir::WalkDir::new(workspace_dir)
@@ -349,7 +359,7 @@ fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
 ///
 /// Discovers all git repositories in the workspace and executes the specified command
 /// in each one. The command is executed directly (not in a shell).
-pub fn apply_command(workspace_dir: &PathBuf, command: Vec<&OsStr>) -> Result<()> {
+pub fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result<()> {
     let repos = find_repositories(workspace_dir)?;
 
     if repos.is_empty() {

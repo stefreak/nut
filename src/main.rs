@@ -3,6 +3,7 @@ mod enter;
 mod error;
 mod gh;
 mod git;
+mod workspace;
 
 use std::ffi::OsStr;
 use std::io::{Write, stdout};
@@ -14,6 +15,7 @@ use ulid::Ulid;
 
 use crate::dirs::{get_cache_dir, get_data_local_dir};
 use crate::error::NutError;
+use crate::workspace::Workspace;
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true, version, about, long_about = None)]
@@ -103,7 +105,7 @@ enum Commands {
 
 /// Process a repository: fetch commit info and clone
 async fn process_repo(
-    workspace_path: &std::path::PathBuf,
+    workspace_path: &std::path::Path,
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
     dry_run: bool,
@@ -238,7 +240,7 @@ async fn main() -> Result<()> {
             }
         }
         Some(Commands::Status { workspace }) => {
-            let workspace = get_workspace(workspace)?;
+            let workspace = Workspace::resolve(workspace)?;
             let statuses = git::get_all_repos_status(&workspace.path)?;
 
             // Count repositories with and without changes
@@ -291,7 +293,7 @@ async fn main() -> Result<()> {
             script,
             command,
         }) => {
-            let workspace = get_workspace(workspace)?;
+            let workspace = Workspace::resolve(workspace)?;
 
             // Handle script mode
             if let Some(script_path) = script {
@@ -351,7 +353,7 @@ async fn main() -> Result<()> {
                 return Err(NutError::InvalidArgumentCombination.into());
             }
 
-            let workspace = get_workspace(workspace)?;
+            let workspace = Workspace::resolve(workspace)?;
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
@@ -407,35 +409,13 @@ async fn main() -> Result<()> {
             write_path_to_stdout(get_data_local_dir()?)?;
         }
         Some(Commands::WorkspaceDir { workspace }) => {
-            let workspace = get_workspace(workspace)?;
+            let workspace = Workspace::resolve(workspace)?;
             write_path_to_stdout(workspace.path.clone())?;
         }
         None => {}
     }
 
     Ok(())
-}
-
-struct Workspace {
-    #[allow(dead_code)]
-    id: ulid::Ulid,
-    path: std::path::PathBuf,
-}
-fn get_workspace(workspace_arg: &Option<String>) -> Result<Workspace> {
-    let ulid = match workspace_arg {
-        Some(id) => id.parse().map_err(|e| NutError::InvalidWorkspaceId {
-            id: id.clone(),
-            source: e,
-        })?,
-        None => enter::get_entered_workspace()?,
-    };
-
-    let workspace_dir = dirs::get_data_local_dir()?.join(ulid.to_string());
-
-    Ok(Workspace {
-        id: ulid,
-        path: workspace_dir,
-    })
 }
 
 // let's preserves the original path even if it does not happen to be valid utf-8, which is valid in some platforms.
