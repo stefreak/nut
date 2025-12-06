@@ -61,7 +61,7 @@ impl<'a> GitCommand<'a> {
                 command: format!("git {}", self.args.join(" ")),
                 source: e,
             })?;
-        
+
         if !status.success() {
             return Err(NutError::GitOperationFailed {
                 operation: format!("git {}", self.args.join(" ")),
@@ -97,9 +97,7 @@ fn update_workspace_repo(
                 .args(&["fetch", "origin"])
                 .run()?;
         } else {
-            GitCommand::new(workspace_repo_dir)
-                .arg("pull")
-                .run()?;
+            GitCommand::new(workspace_repo_dir).arg("pull").run()?;
         }
     }
     Ok(())
@@ -147,7 +145,7 @@ fn clone_from_cache_to_workspace(
 ) -> Result<()> {
     let cache_repo_path = cache_dir.join(full_name);
     let cache_dir_str = cache_repo_path.to_str().ok_or(NutError::InvalidUtf8)?;
-    
+
     GitCommand::new(workspace_dir)
         .args(&["clone", "--local", cache_dir_str, full_name])
         .run()?;
@@ -183,7 +181,13 @@ pub fn clone(
         }
 
         // Ensure cache repository is up to date
-        ensure_cache_repo(&cache_dir, full_name, &clone_url, default_branch, latest_commit)?;
+        ensure_cache_repo(
+            &cache_dir,
+            full_name,
+            &clone_url,
+            default_branch,
+            latest_commit,
+        )?;
     }
 
     // Repository might already exist (e.g., empty repo)
