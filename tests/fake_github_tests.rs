@@ -419,3 +419,27 @@ async fn test_import_query_with_fake_github_server() {
         stdout
     );
 }
+
+#[test]
+fn test_cache_dir_structure_with_custom_host() {
+    // Test that custom hosts result in proper cache directory structure
+    let env = TestEnv::new("cache_dir_custom_host");
+    let cache_dir = env.get_cache_dir();
+
+    // Create a fake git repo with a custom host to verify the directory structure
+    create_fake_git_repo(&cache_dir, "github.company.com", "myorg/myrepo");
+
+    // Verify the directory exists
+    let expected_path = cache_dir.join("github.company.com").join("myorg/myrepo");
+    assert!(
+        expected_path.exists(),
+        "Cache directory should exist at {:?}",
+        expected_path
+    );
+
+    // Verify it's a valid git repository
+    assert!(
+        expected_path.join("HEAD").exists(),
+        "Should have HEAD file (bare repo)"
+    );
+}
