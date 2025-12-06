@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/stefreak/nut/compare/v0.3.0...v0.3.1) - 2025-12-06
+
+### <!-- 2 -->Performance
+
+- process git status checks concurrently for better performance
+
+### Refactor
+
+- eliminate duplication and complexity through abstraction ([#32](https://github.com/stefreak/nut/pull/32))
+
 ## [0.3.0](https://github.com/stefreak/nut/compare/v0.2.3...v0.3.0) - 2025-12-01
 
 ### <!-- 0 -->New features
