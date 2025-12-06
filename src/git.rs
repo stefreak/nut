@@ -332,7 +332,7 @@ pub async fn get_repo_status(
 // use walkdir crate to recursively find git repos (by looking for .git directories)
 pub async fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
-    
+
     // Process all repositories concurrently for better performance
     let futures: Vec<_> = repos
         .into_iter()
@@ -340,7 +340,7 @@ pub async fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus
             get_repo_status(workspace_dir, &repo_path_relative).await
         })
         .collect();
-    
+
     let results = futures_util::future::join_all(futures).await;
     let mut statuses: Vec<RepoStatus> = results.into_iter().flatten().collect();
 
