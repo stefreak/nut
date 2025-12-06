@@ -2,8 +2,6 @@ use std::ffi::OsStr;
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 
-use miette::IntoDiagnostic;
-
 use crate::error::{NutError, Result};
 
 use super::repository::find_repositories;
@@ -37,7 +35,7 @@ pub async fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result
             })?;
 
         if !status.success() {
-            let error: miette::Result<()> = Err(NutError::CommandFailed {
+            let error = NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
                 source: std::io::Error::other(if let Some(code) = status.code() {
                     format!("Command exited with status code {}", code)
@@ -46,12 +44,11 @@ pub async fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result
                 } else {
                     "Command terminated for unknown reason".to_string()
                 }),
-            })
-            .into_diagnostic();
+            };
 
-            // This will automatically render fancy miette errors due to global hook in main.rs
+            // Render the error using miette's fancy formatting
             eprintln!();
-            eprintln!("{:?}", error.err().unwrap());
+            eprintln!("{:?}", miette::Report::from(error));
         }
         println!();
     }

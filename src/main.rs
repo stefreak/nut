@@ -123,15 +123,15 @@ async fn process_repo(
 
     let default_branch = &details.default_branch;
     let latest_commit = match default_branch {
-        Some(d) => repo
-            .list_commits()
-            .branch(d)
-            .send()
-            .await
-            .unwrap_or_default()
-            .take_items()
-            .first()
-            .map(|c| c.sha.clone()),
+        Some(d) => {
+            match repo.list_commits().branch(d).send().await {
+                Ok(mut commits) => commits.take_items().first().map(|c| c.sha.clone()),
+                Err(_) => {
+                    // If fetching commits fails (e.g., empty repo), proceed without commit info
+                    None
+                }
+            }
+        }
         None => None,
     };
     git::clone(workspace_path, full_name, &latest_commit, default_branch).await?;
