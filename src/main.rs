@@ -103,7 +103,7 @@ enum Commands {
 
 /// Process a repository: fetch commit info and clone
 async fn process_repo(
-    workspace_path: &std::path::PathBuf,
+    workspace_path: &std::path::Path,
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
     dry_run: bool,
