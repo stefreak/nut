@@ -305,7 +305,7 @@ pub fn get_repo_status(workspace_dir: &Path, repo_path_relative: &PathBuf) -> Op
 }
 
 // use walkdir crate to recursively find git repos (by looking for .git directories)
-pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> {
+pub fn get_all_repos_status(workspace_dir: &Path) -> Result<Vec<RepoStatus>> {
     let repos = find_repositories(workspace_dir)?;
     let mut statuses = Vec::new();
 
@@ -325,7 +325,7 @@ pub fn get_all_repos_status(workspace_dir: &PathBuf) -> Result<Vec<RepoStatus>> 
 ///
 /// Searches for directories containing a `.git` subdirectory within the workspace,
 /// up to a maximum depth of 3 levels. Returns a sorted list of repository paths.
-fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
+fn find_repositories(workspace_dir: &Path) -> Result<Vec<PathBuf>> {
     let mut repos = Vec::new();
 
     let walker = walkdir::WalkDir::new(workspace_dir)
@@ -355,7 +355,7 @@ fn find_repositories(workspace_dir: &PathBuf) -> Result<Vec<PathBuf>> {
 ///
 /// Discovers all git repositories in the workspace and executes the specified command
 /// in each one. The command is executed directly (not in a shell).
-pub fn apply_command(workspace_dir: &PathBuf, command: Vec<&OsStr>) -> Result<()> {
+pub fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result<()> {
     let repos = find_repositories(workspace_dir)?;
 
     if repos.is_empty() {
