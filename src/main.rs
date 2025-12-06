@@ -15,6 +15,29 @@ use ulid::Ulid;
 use crate::dirs::{get_cache_dir, get_data_local_dir};
 use crate::error::NutError;
 
+/// Normalize a host string by stripping http:// or https:// prefix
+/// This is used when passing the host to git operations
+fn normalize_host_for_git(host: &str) -> &str {
+    host.strip_prefix("https://")
+        .or_else(|| host.strip_prefix("http://"))
+        .unwrap_or(host)
+}
+
+/// Construct the GitHub API base URL from a host string
+/// Handles github.com, custom hosts, and full URLs
+fn construct_api_base_url(host: &str) -> String {
+    if host == "github.com" {
+        // Use the standard API endpoint for github.com
+        "https://api.github.com".to_string()
+    } else if host.starts_with("http://") || host.starts_with("https://") {
+        // If full URL provided, use it as-is (useful for testing)
+        host.trim_end_matches('/').to_string()
+    } else {
+        // Assume HTTPS for GitHub Enterprise
+        format!("https://{}/api/v3", host)
+    }
+}
+
 #[derive(Parser)]
 #[command(arg_required_else_help = true, version, about, long_about = None)]
 struct Cli {
@@ -139,11 +162,8 @@ async fn process_repo(
         None => None,
     };
 
-    // Extract just the host part for git operations (strip http:// or https://)
-    let git_host = host
-        .strip_prefix("https://")
-        .or_else(|| host.strip_prefix("http://"))
-        .unwrap_or(host);
+    // Normalize host for git operations (strip http:// or https://)
+    let git_host = normalize_host_for_git(host);
 
     git::clone(
         workspace_path,
@@ -375,18 +395,8 @@ async fn main() -> Result<()> {
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
-            // Construct the API base URL
-            // For github.com, use the standard API endpoint
-            // For custom hosts, assume they follow GitHub Enterprise format
-            let base_url = if github_host == "github.com" {
-                "https://api.github.com".to_string()
-            } else if github_host.starts_with("http://") || github_host.starts_with("https://") {
-                // If full URL provided, use it as-is (useful for testing)
-                github_host.trim_end_matches('/').to_string()
-            } else {
-                // Assume HTTPS for GitHub Enterprise
-                format!("https://{}/api/v3", github_host)
-            };
+            // Construct the API base URL for the specified host
+            let base_url = construct_api_base_url(github_host);
 
             let crab = octocrab::Octocrab::builder()
                 .base_uri(&base_url)
@@ -482,4 +492,73 @@ fn write_path_to_stdout(path: std::path::PathBuf) -> Result<()> {
         .into_diagnostic()?;
     println!();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_host_for_git_with_https() {
+        assert_eq!(
+            normalize_host_for_git("https://github.company.com"),
+            "github.company.com"
+        );
+    }
+
+    #[test]
+    fn test_normalize_host_for_git_with_http() {
+        assert_eq!(
+            normalize_host_for_git("http://localhost:8080"),
+            "localhost:8080"
+        );
+    }
+
+    #[test]
+    fn test_normalize_host_for_git_without_scheme() {
+        assert_eq!(
+            normalize_host_for_git("github.company.com"),
+            "github.company.com"
+        );
+    }
+
+    #[test]
+    fn test_construct_api_base_url_github_com() {
+        assert_eq!(
+            construct_api_base_url("github.com"),
+            "https://api.github.com"
+        );
+    }
+
+    #[test]
+    fn test_construct_api_base_url_custom_host() {
+        assert_eq!(
+            construct_api_base_url("github.company.com"),
+            "https://github.company.com/api/v3"
+        );
+    }
+
+    #[test]
+    fn test_construct_api_base_url_full_https_url() {
+        assert_eq!(
+            construct_api_base_url("https://api.test.com"),
+            "https://api.test.com"
+        );
+    }
+
+    #[test]
+    fn test_construct_api_base_url_full_http_url() {
+        assert_eq!(
+            construct_api_base_url("http://localhost:8080"),
+            "http://localhost:8080"
+        );
+    }
+
+    #[test]
+    fn test_construct_api_base_url_trailing_slash() {
+        assert_eq!(
+            construct_api_base_url("http://localhost:8080/"),
+            "http://localhost:8080"
+        );
+    }
 }
