@@ -17,16 +17,15 @@ pub struct RepoStatus {
 
 pub fn clone(
     workspace_dir: &PathBuf,
+    host: &str,
     full_name: &str,
     latest_commit: &Option<String>,
     default_branch: &Option<String>,
 ) -> Result<()> {
-    // TODO: add support for other hosts, e.g. github enterprise and other git hosting providers
-    let host = "github.com";
     let git_protocol = gh::get_git_protocol_with_fallback(host);
     let clone_url = git_protocol.to_clone_url(host, full_name);
 
-    let cache_dir = dirs::get_cache_dir()?.join("github");
+    let cache_dir = dirs::get_cache_dir()?.join(host);
 
     if let (Some(default_branch), Some(latest_commit)) = (default_branch, latest_commit) {
         if workspace_dir.join(full_name).exists() {

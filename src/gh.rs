@@ -98,6 +98,24 @@ mod tests {
     }
 
     #[test]
+    fn test_git_protocol_to_clone_url_https_self_hosted() {
+        let protocol = GitProtocol::Https;
+        assert_eq!(
+            protocol.to_clone_url("github.company.com", "owner/repo"),
+            "https://github.company.com/owner/repo.git"
+        );
+    }
+
+    #[test]
+    fn test_git_protocol_to_clone_url_ssh_self_hosted() {
+        let protocol = GitProtocol::Ssh;
+        assert_eq!(
+            protocol.to_clone_url("github.company.com", "owner/repo"),
+            "git@github.company.com:owner/repo.git"
+        );
+    }
+
+    #[test]
     fn test_get_git_protocol_with_fallback_defaults_to_https() {
         // When gh is not available or not configured, should default to HTTPS
         let protocol = get_git_protocol_with_fallback("github.com");

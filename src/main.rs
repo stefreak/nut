@@ -83,6 +83,11 @@ enum Commands {
         #[arg(short, long)]
         github_token: Option<String>,
 
+        /// GitHub hostname (default: github.com)
+        /// Use this for GitHub Enterprise or other self-hosted GitHub instances
+        #[arg(long, default_value = "github.com")]
+        github_host: String,
+
         /// List of specific repositories to import (full names, e.g. owner/repo)
         /// Mutually exclusive with --query option
         #[arg(trailing_var_arg = true, required = false)]
@@ -107,6 +112,7 @@ async fn process_repo(
     crab: &octocrab::Octocrab,
     details: octocrab::models::Repository,
     dry_run: bool,
+    host: &str,
 ) -> Result<()> {
     let repo = crab.repos(
         details.owner.ok_or(NutError::InvalidUtf8)?.login,
@@ -132,7 +138,7 @@ async fn process_repo(
             .map(|c| c.sha.clone()),
         None => None,
     };
-    git::clone(workspace_path, full_name, &latest_commit, default_branch)?;
+    git::clone(workspace_path, host, full_name, &latest_commit, default_branch)?;
     Ok(())
 }
 
@@ -340,6 +346,7 @@ async fn main() -> Result<()> {
             workspace,
             dry_run,
             github_token,
+            github_host,
             query,
             full_repository_names,
         }) => {
@@ -355,8 +362,17 @@ async fn main() -> Result<()> {
 
             let token = gh::get_token_with_fallback(github_token.as_deref())?;
 
-            let crab = octocrab::instance()
+            let base_url = if github_host == "github.com" {
+                "https://api.github.com".to_string()
+            } else {
+                format!("https://{}/api/v3", github_host)
+            };
+
+            let crab = octocrab::Octocrab::builder()
+                .base_uri(&base_url)
+                .into_diagnostic()?
                 .user_access_token(token.into_boxed_str())
+                .build()
                 .into_diagnostic()?;
 
             if let Some(q) = query {
@@ -370,7 +386,7 @@ async fn main() -> Result<()> {
 
                 loop {
                     for details in page.items {
-                        process_repo(&workspace.path, &crab, details, *dry_run).await?;
+                        process_repo(&workspace.path, &crab, details, *dry_run, github_host).await?;
                     }
 
                     page = match crab
@@ -396,7 +412,7 @@ async fn main() -> Result<()> {
                     let repo = parts[1];
                     let repo_handler = crab.repos(owner, repo);
                     let details = repo_handler.get().await.into_diagnostic()?;
-                    process_repo(&workspace.path, &crab, details, *dry_run).await?;
+                    process_repo(&workspace.path, &crab, details, *dry_run, github_host).await?;
                 }
             }
         }
