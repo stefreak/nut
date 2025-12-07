@@ -3,6 +3,7 @@ mod enter;
 mod error;
 mod gh;
 mod git;
+mod processes;
 mod workspace;
 
 use std::ffi::OsStr;

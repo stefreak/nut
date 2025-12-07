@@ -6,6 +6,7 @@ use crate::error::{NutError, Result};
 use crate::{dirs, gh};
 use miette::IntoDiagnostic;
 
+#[derive(Debug, Clone)]
 pub struct RepoStatus {
     pub path_relative: OsString,
     pub has_changes: bool,
