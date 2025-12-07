@@ -6,6 +6,8 @@ A workspace manager for working with multiple GitHub repositories simultaneously
 
 `nut` creates isolated workspaces for organizing and managing clones of GitHub repositories. The `import` command uses a local cache reduce cloning time to a minimum.
 
+`nut` now includes both a command-line interface and a graphical user interface built with [iced](https://github.com/iced-rs/iced).
+
 _This package is experimental and not feature complete._
 
 ## Installation
@@ -20,9 +22,28 @@ cargo install nut-workspace
 
 ## Usage
 
+### Command Line Interface
+
 ```bash
 nut --help
 ```
+
+### Graphical User Interface
+
+To start the graphical interface:
+
+```bash
+nut-ui
+```
+
+The UI provides a visual way to:
+- Create, select, and delete workspaces
+- Clone repositories and view their status
+- Commit changes across all repositories
+- Monitor and manage processes running in workspaces
+- View CPU and memory usage metrics
+
+See [UI_README.md](./UI_README.md) for detailed UI documentation.
 
 ### Create a workspace
 
