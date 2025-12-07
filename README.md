@@ -60,7 +60,7 @@ nut import --query "org:actions language:JavaScript,TypeScript -fork:only -archi
 nut import --query "user:stefreak is:public"
 
 # Import repositories with specific topics
-nut import --query "topic:rust-cli user:stefreak"
+nut import --query "topic:cli user:stefreak"
 ```
 
 You can use the same search syntax as on [github.com/search](https://github.com/search).
