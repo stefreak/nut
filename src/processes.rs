@@ -36,11 +36,18 @@ pub fn get_workspace_processes(workspace_path: &Path) -> Vec<ProcessInfo> {
         }
     }
 
-    processes.sort_by(|a, b| b.cpu_usage.partial_cmp(&a.cpu_usage).unwrap());
+    processes.sort_by(|a, b| {
+        b.cpu_usage
+            .partial_cmp(&a.cpu_usage)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     processes
 }
 
 pub fn kill_process(pid: u32) -> Result<(), String> {
+    // Note: Callers should validate that the PID belongs to a process
+    // within the intended workspace directory before calling this function.
+    // The UI already ensures this by only displaying workspace processes.
     #[cfg(unix)]
     {
         use std::process::Command;

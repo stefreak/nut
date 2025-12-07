@@ -484,7 +484,7 @@ async fn perform_commit(workspace_path: PathBuf, message: String) -> Result<Stri
     use std::ffi::OsStr;
     let args: Vec<&OsStr> = vec![OsStr::new("git"), OsStr::new("add"), OsStr::new(".")];
 
-    git::apply_command(&workspace_path, args.clone())
+    git::apply_command(&workspace_path, args)
         .await
         .map_err(|e| format!("Failed to stage changes: {:?}", e))?;
 
