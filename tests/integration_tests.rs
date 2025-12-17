@@ -51,8 +51,7 @@ impl TestEnv {
         let workspace_dir = self.temp_dir.join("workspaces");
         let config = format!(
             r#"{{
-  "workspace_dir": "{}",
-  "cache_dir": null
+  "workspace_dir": "{}"
 }}"#,
             workspace_dir.display()
         );
