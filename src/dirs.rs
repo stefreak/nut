@@ -1,3 +1,4 @@
+use crate::config::NutConfig;
 use crate::error::Result;
 use directories::ProjectDirs;
 
@@ -7,15 +8,15 @@ fn get_proj_dirs() -> ProjectDirs {
 }
 
 pub async fn get_data_local_dir() -> Result<std::path::PathBuf> {
-    let proj_dirs = get_proj_dirs();
-    let local_data_dir = proj_dirs.data_local_dir();
+    let config = NutConfig::load()?;
+    let workspace_dir = config.get_workspace_dir()?;
 
     // ensure exists
-    tokio::fs::create_dir_all(local_data_dir)
+    tokio::fs::create_dir_all(&workspace_dir)
         .await
         .map_err(|e| crate::error::NutError::ProjectDirectoriesUnavailable { source: e })?;
 
-    Ok(tokio::fs::canonicalize(proj_dirs.data_local_dir())
+    Ok(tokio::fs::canonicalize(&workspace_dir)
         .await
         .map_err(|e| crate::error::NutError::ProjectDirectoriesUnavailable { source: e })?
         .to_path_buf())

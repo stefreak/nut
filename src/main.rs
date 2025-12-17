@@ -1,3 +1,4 @@
+mod config;
 mod dirs;
 mod enter;
 mod error;
@@ -100,6 +101,12 @@ enum Commands {
         /// If not provided, uses the currently entered workspace
         #[arg(short, long)]
         workspace: Option<String>,
+    },
+    /// Configure nut settings
+    Config {
+        /// Set the workspace directory
+        #[arg(short, long)]
+        workspace_dir: Option<String>,
     },
 }
 
@@ -417,6 +424,17 @@ async fn main() -> Result<()> {
         Some(Commands::WorkspaceDir { workspace }) => {
             let workspace = Workspace::resolve(workspace).await?;
             write_path_to_stdout(workspace.path.clone())?;
+        }
+        Some(Commands::Config { workspace_dir }) => {
+            let mut config = config::NutConfig::load()?;
+
+            if let Some(dir) = workspace_dir {
+                let path = std::path::PathBuf::from(dir);
+                config.workspace_dir = Some(path.clone());
+                println!("Workspace directory set to: {}", path.display());
+            }
+
+            config.save()?;
         }
         None => {}
     }

@@ -197,6 +197,37 @@ pub enum NutError {
     #[error("GitHub token required")]
     #[diagnostic(code(nut::github::missing_token), help("{message}"))]
     MissingGitHubToken { message: String },
+
+    #[error("Workspace directory not configured")]
+    #[diagnostic(
+        code(nut::config::workspace_dir_not_configured),
+        help("Set the workspace directory using: nut config --workspace-dir <path>")
+    )]
+    WorkspaceDirectoryNotConfigured,
+
+    #[error("Failed to load configuration")]
+    #[diagnostic(code(nut::config::load_failed))]
+    ConfigLoadFailed {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("Failed to save configuration")]
+    #[diagnostic(code(nut::config::save_failed))]
+    ConfigSaveFailed {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("HOME directory not found")]
+    #[diagnostic(
+        code(nut::config::home_not_found),
+        help("Make sure the HOME environment variable is set")
+    )]
+    HomeDirectoryNotFound {
+        #[source]
+        source: std::env::VarError,
+    },
 }
 
 pub type Result<T> = miette::Result<T, NutError>;
