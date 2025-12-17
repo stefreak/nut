@@ -50,6 +50,7 @@ impl NutConfig {
 
     pub fn config_path() -> Result<PathBuf> {
         let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
             .map_err(|e| crate::error::NutError::HomeDirectoryNotFound { source: e })?;
         Ok(PathBuf::from(home).join(".nut.json"))
     }
@@ -67,7 +68,15 @@ impl NutConfig {
     }
 
     fn default_cache_dir() -> PathBuf {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .unwrap_or_else(|_| {
+                if cfg!(unix) {
+                    "/tmp".to_string()
+                } else {
+                    ".".to_string()
+                }
+            });
         PathBuf::from(home).join(".cache").join("nut")
     }
 }

@@ -41,7 +41,6 @@ maintenance = { status = "experimental" }
 chrono = "0.4.42"
 clap = { version = "4.5.53", features = ["derive", "string"] }
 config = "0.14"
-directories = "6.0.0"
 futures-util = "0.3.31"
 miette = { version = "7", features = ["fancy"] }
 octocrab = { version = "0.48.1", features = ["stream"] }
