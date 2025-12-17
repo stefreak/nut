@@ -33,11 +33,30 @@ impl TestEnv {
 
         fs::create_dir_all(&temp_dir).unwrap();
 
-        TestEnv {
+        let env = TestEnv {
             temp_dir: temp_dir
                 .canonicalize()
                 .expect("Failed to canonicalize tmp dir"),
-        }
+        };
+
+        // Set up config file with workspace directory
+        env.setup_config();
+
+        env
+    }
+
+    /// Set up config file with default workspace directory
+    fn setup_config(&self) {
+        let config_path = self.temp_dir.join(".nut.json");
+        let workspace_dir = self.temp_dir.join("workspaces");
+        let config = format!(
+            r#"{{
+  "workspace_dir": "{}",
+  "cache_dir": null
+}}"#,
+            workspace_dir.display()
+        );
+        fs::write(config_path, config).unwrap();
     }
 
     /// Get the path to the nut binary
@@ -77,12 +96,8 @@ impl TestEnv {
 
     /// Get the data directory path for this test environment
     fn get_data_dir(&self) -> PathBuf {
-        // Run the actual nut data-dir command to get the platform-specific path
-        // This works cross-platform (Linux, macOS, Windows) using the directories crate
-        let output = self.run_nut(&["data-dir"], None);
-        assert!(output.status.success(), "data-dir command should succeed");
-        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        PathBuf::from(path_str)
+        // Return the workspace directory that was configured during setup
+        self.temp_dir.join("workspaces")
     }
 
     /// Get the cache directory path for this test environment
