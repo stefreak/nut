@@ -1,3 +1,5 @@
+#![allow(unused_assignments)]
+
 use miette::Diagnostic;
 use std::path::PathBuf;
 use thiserror::Error;
