@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/stefreak/nut/compare/v0.3.1...v0.4.0) - 2025-12-22
+
+### <!-- 0 -->New features
+
+- [**breaking**] Require workspace_dir configuration, keep cache at platform-specific location ([#47](https://github.com/stefreak/nut/pull/47))
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump serde_json from 1.0.145 to 1.0.146 ([#50](https://github.com/stefreak/nut/pull/50))
+- *(deps)* bump octocrab from 0.48.1 to 0.49.2 ([#51](https://github.com/stefreak/nut/pull/51))
+- *(deps)* bump config from 0.14.1 to 0.15.19 ([#53](https://github.com/stefreak/nut/pull/53))
+- suppress unused_assignments lint in error.rs ([#48](https://github.com/stefreak/nut/pull/48))
+- *(deps)* bump octocrab from 0.48.0 to 0.48.1 ([#40](https://github.com/stefreak/nut/pull/40))
+
 ## [0.3.1](https://github.com/stefreak/nut/compare/v0.3.0...v0.3.1) - 2025-12-06
 
 ### <!-- 2 -->Performance
