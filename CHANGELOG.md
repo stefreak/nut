@@ -19,13 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(deps)* bump octocrab from 0.49.4 to 0.49.5 ([#56](https://github.com/stefreak/nut/pull/56))
 - *(deps)* bump tokio from 1.48.0 to 1.49.0 ([#58](https://github.com/stefreak/nut/pull/58))
 - *(deps)* bump rsa in the cargo group across 1 directory ([#59](https://github.com/stefreak/nut/pull/59))
-- *(deps)* bump octocrab from 0.49.2 to 0.49.4 ([#55](https://github.com/stefreak/nut/pull/55))
 - *(deps)* bump serde_json from 1.0.146 to 1.0.148 ([#54](https://github.com/stefreak/nut/pull/54))
-- *(deps)* bump serde_json from 1.0.145 to 1.0.146 ([#50](https://github.com/stefreak/nut/pull/50))
-- *(deps)* bump octocrab from 0.48.1 to 0.49.2 ([#51](https://github.com/stefreak/nut/pull/51))
 - *(deps)* bump config from 0.14.1 to 0.15.19 ([#53](https://github.com/stefreak/nut/pull/53))
 - suppress unused_assignments lint in error.rs ([#48](https://github.com/stefreak/nut/pull/48))
-- *(deps)* bump octocrab from 0.48.0 to 0.48.1 ([#40](https://github.com/stefreak/nut/pull/40))
 
 ## [0.3.1](https://github.com/stefreak/nut/compare/v0.3.0...v0.3.1) - 2025-12-06
 
