@@ -38,7 +38,7 @@ path = "src/main.rs"
 maintenance = { status = "experimental" }
 
 [dependencies]
-chrono = "0.4.42"
+chrono = "0.4.43"
 clap = { version = "4.5.54", features = ["derive", "string"] }
 config = "0.15"
 directories = "6.0.0"
