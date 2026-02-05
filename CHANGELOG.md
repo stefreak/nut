@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/stefreak/nut/compare/v0.4.0...v0.4.1) - 2026-01-28
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump thiserror from 2.0.17 to 2.0.18 ([#64](https://github.com/stefreak/nut/pull/64))
+- *(deps)* bump chrono from 0.4.42 to 0.4.43 ([#65](https://github.com/stefreak/nut/pull/65))
+
 ## [0.4.0](https://github.com/stefreak/nut/compare/v0.3.1...v0.4.0) - 2026-01-07
 
 ### <!-- 0 -->New features
