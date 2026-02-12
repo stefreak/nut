@@ -2,11 +2,11 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "nut",
   "version": "0.1.0",
-  "identifier": "com.nut.app",
+  "identifier": "com.nut.workspace-ui",
   "build": {
-    "beforeDevCommand": "cd ../user-interface && npm run dev",
+    "beforeDevCommand": "cd ../src-tauri && cargo run --bin generate-types && cd ../user-interface && pnpm i && pnpm run dev",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "cd ../user-interface && npm run build",
+    "beforeBuildCommand": "cd ../src-tauri && cargo run --bin generate-types && cd ../user-interface && pnpm i && pnpm run build",
     "frontendDist": "../user-interface/build"
   },
   "bundle": {

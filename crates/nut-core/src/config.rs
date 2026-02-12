@@ -63,7 +63,7 @@ impl NutConfig {
     pub fn get_workspace_dir(&self) -> Result<PathBuf> {
         self.workspace_dir
             .clone()
-            .ok_or(NutError::WorkspaceDirectoryNotConfigured)
+            .map_or_else(|| Ok(PathBuf::from(NutConfig::get_home_dir()?).join(".nut")), Ok)
     }
 
     fn get_home_dir() -> Result<String> {

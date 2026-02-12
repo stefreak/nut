@@ -8,16 +8,13 @@ mod commands;
 
 fn main() {
     // Generate TypeScript bindings using tauri-specta builder
-    let builder = Builder::<tauri::Wry>::new()
+    Builder::<tauri::Wry>::new()
         .commands(tauri_specta::collect_commands![
             commands::list_workspaces,
             commands::create_workspace,
             commands::list_workspace_repositories,
             commands::import_repositories,
-        ]);
-
-    #[cfg(debug_assertions)]
-    builder
+        ])
         .export(
             Typescript::default()
                 .header("// This file is auto-generated. Do not edit manually."),
