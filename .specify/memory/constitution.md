@@ -1,13 +1,15 @@
 <!--
 Sync Impact Report
 ==================
-Version change: N/A → 1.0.0 (initial constitution)
-Added sections:
-  - Core Principles (5 principles)
-  - Architecture Components
-  - Technology Stack
-  - Governance
-Removed sections: None
+Version change: 1.0.0 → 1.1.0 (minor amendment)
+Changed sections:
+  - Principle II: Updated type generation from typeshare to specta+tauri-specta
+  - Architecture Components: Fixed directory paths (src-tauri/, user-interface/)
+  - Technology Stack: Updated type generation tool to specta
+  - Type Flow diagram: Updated tool reference
+Rationale: 
+  - specta provides native Tauri integration via tauri-specta plugin
+  - Directory structure aligned with conventional Tauri project layout
 Templates requiring updates:
   - plan-template.md ✅ (no updates needed - compatible)
   - spec-template.md ✅ (no updates needed - compatible)
@@ -36,7 +38,7 @@ All shared functionality MUST be implemented in the core Rust library (`nut-core
 All data crossing Rust↔TypeScript boundaries MUST have generated type definitions with runtime validation.
 
 **Requirements**:
-- Use `typeshare` (https://github.com/1password/typeshare) to generate TypeScript types from Rust structs
+- Use `specta` with `tauri-specta` (https://github.com/oscartbeaumont/specta) to generate TypeScript types from Rust structs. Specta provides native Tauri integration via tauri-specta plugin.
 - Generated types MUST NOT be committed to source control, but they are generated as part of the build process
 - Tauri commands MUST use typed request/response structures (no raw `serde_json::Value` at boundaries)
 - Frontend MUST import generated types—manual type duplication is forbidden
@@ -91,12 +93,12 @@ The nut workspace manager consists of four integrated components:
 |-----------|----------|---------|
 | **Core Library** | `crates/nut-core/` | Shared business logic for workspace, repository, and GitHub operations |
 | **CLI** | `crates/nut-cli/` | Command-line interface using `clap`, thin wrapper over core |
-| **Tauri Backend** | `crates/nut-ui/src` | Tauri commands exposing core functionality to frontend |
-| **Tauri Frontend** | `crates/nut-ui/frontend/` | Vite + React + TypeScript desktop UI |
+| **Tauri Backend** | `src-tauri/` | Tauri commands exposing core functionality to frontend |
+| **Tauri Frontend** | `user-interface/` | Vite + React + TypeScript desktop UI |
 
 **Type Flow**:
 ```
-Core Rust types → typeshare → generated/*.ts → Frontend imports
+Core Rust types → specta/tauri-specta → generated/*.ts → Frontend imports
 ```
 
 ## Technology Stack
@@ -107,7 +109,7 @@ Core Rust types → typeshare → generated/*.ts → Frontend imports
 | CLI | clap |
 | Desktop | Tauri |
 | Frontend | Vite + React + TypeScript |
-| Type Generation | typeshare |
+| Type Generation | specta + tauri-specta |
 | GitHub API | octocrab |
 | Async Runtime | tokio |
 
@@ -128,4 +130,4 @@ This constitution supersedes all other development practices for the nut project
 - Violations MUST be documented with explicit justification
 - Principle conflicts MUST escalate to constitution amendment discussion
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-12 | **Last Amended**: 2026-02-12
+**Version**: 1.1.0 | **Ratified**: 2026-02-12 | **Last Amended**: 2026-02-12

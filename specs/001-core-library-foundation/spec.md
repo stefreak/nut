@@ -138,7 +138,7 @@ As a desktop user, I want to import repositories into a workspace using a search
 - **FR-003**: CLI MUST call core library for create, list, and import commands—no direct filesystem/git operations in CLI for these
 - **FR-004**: CLI behavior MUST be identical before and after refactoring (no user-visible changes)
 - **FR-005**: Tauri backend MUST expose commands wrapping core library APIs
-- **FR-006**: TypeScript types MUST be generated from Rust structs using typeshare
+- **FR-006**: TypeScript types MUST be generated from Rust structs using specta with tauri-specta
 - **FR-007**: Frontend MUST use generated types—no manual type definitions for boundary data
 - **FR-008**: `nut enter`, `nut apply`, `nut status` remain CLI-only, implemented directly in CLI crate (not in core)
 - **FR-009**: Core library MUST NOT have CLI-specific dependencies (shell spawning, stdin/stdout handling)
