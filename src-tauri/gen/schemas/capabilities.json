@@ -1,0 +1,1 @@
+{"workspace-access":{"identifier":"workspace-access","description":"Permissions for workspace and cache directory access","local":true,"windows":["main"],"permissions":["core:default","core:path:default","core:event:default","shell:default"]}}

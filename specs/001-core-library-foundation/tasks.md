@@ -114,32 +114,32 @@
 
 ### Tauri Initialization
 
-- [ ] T035 Initialize Tauri project in src-tauri/ directory (Tauri 2.x)
-- [ ] T036 [P] Add nut-core dependency to src-tauri/Cargo.toml
-- [ ] T037 [P] Add specta and tauri-specta dependencies to src-tauri/Cargo.toml for type generation
+- [X] T035 Initialize Tauri project in src-tauri/ directory (Tauri 2.x)
+- [X] T036 [P] Add nut-core dependency to src-tauri/Cargo.toml
+- [X] T037 [P] Add specta and tauri-specta dependencies to src-tauri/Cargo.toml for type generation
 
 ### Type Definitions
 
-- [ ] T038 [P] Create crates/nut-core/src/types.rs with TypeScript-exportable types (derive Serialize, Deserialize, specta::Type)
-- [ ] T039 [P] Define WorkspaceInfo struct in crates/nut-core/src/types.rs (id: String, description: String, created_at: String, path: String)
-- [ ] T040 [P] Define CreateWorkspaceRequest struct: { description: String }
-- [ ] T041 [P] Define ImportRequest struct: { workspace_id: String, query: Option<String>, repository_names: Vec<String>, dry_run: bool }
+- [X] T038 [P] Create crates/nut-core/src/types.rs with TypeScript-exportable types (derive Serialize, Deserialize, specta::Type)
+- [X] T039 [P] Define WorkspaceInfo struct in crates/nut-core/src/types.rs (id: String, description: String, created_at: String, path: String)
+- [X] T040 [P] Define CreateWorkspaceRequest struct: { description: String }
+- [X] T041 [P] Define ImportRequest struct: { workspace_id: String, query: Option<String>, repository_names: Vec<String>, dry_run: bool }
 
 ### Tauri Commands
 
-- [ ] T042 Create src-tauri/src/commands.rs with command function signatures
-- [ ] T043 [P] Implement list_workspaces command in src-tauri/src/commands.rs calling nut_core::workspace::list_workspaces()
-- [ ] T044 [P] Implement create_workspace command in src-tauri/src/commands.rs calling nut_core::workspace::create_workspace()
-- [ ] T045 Implement import_repositories command in src-tauri/src/commands.rs (async, returns progress stream)
-- [ ] T046 Register commands in src-tauri/src/main.rs
-- [ ] T047 Configure Tauri capabilities in src-tauri/capabilities/workspace-access.json (fs:read-dir, fs:create-dir, fs:write-file scoped to workspace dirs from config) - NOTE: These permissions are for Tauri backend commands accessing core library, NOT for frontend direct filesystem access
+- [X] T042 Create src-tauri/src/commands.rs with command function signatures
+- [X] T043 [P] Implement list_workspaces command in src-tauri/src/commands.rs calling nut_core::workspace::list_workspaces()
+- [X] T044 [P] Implement create_workspace command in src-tauri/src/commands.rs calling nut_core::workspace::create_workspace()
+- [X] T045 Implement import_repositories command in src-tauri/src/commands.rs (async, returns progress stream)
+- [X] T046 Register commands in src-tauri/src/main.rs
+- [X] T047 Configure Tauri capabilities in src-tauri/capabilities/workspace-access.json (fs:read-dir, fs:create-dir, fs:write-file scoped to workspace dirs from config) - NOTE: These permissions are for Tauri backend commands accessing core library, NOT for frontend direct filesystem access
 
 ### Type Generation
 
-- [ ] T048 Setup specta type generation script in src-tauri/src/main.rs (generate types to user-interface/src/bindings/types.ts)
-- [ ] T049 Generate TypeScript types and verify user-interface/src/bindings/types.ts created (not committed, build-time only)
-- [ ] T050 Add type generation to build process (build.rs or npm script)
-- [ ] T050b [P] Add user-interface/src/bindings/ to .gitignore to exclude generated types from version control
+- [X] T048 Setup specta type generation script in src-tauri/src/main.rs (generate types to user-interface/src/bindings/types.ts)
+- [X] T049 Generate TypeScript types and verify user-interface/src/bindings/types.ts created (not committed, build-time only)
+- [X] T050 Add type generation to build process (build.rs or npm script)
+- [X] T050b [P] Add user-interface/src/bindings/ to .gitignore to exclude generated types from version control
 
 **Checkpoint**: Tauri backend ready, types generated - UI work can begin
 

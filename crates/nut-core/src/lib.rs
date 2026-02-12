@@ -38,9 +38,11 @@ pub mod dirs;
 pub mod error;
 pub mod gh;
 pub mod git;
+pub mod types;
 pub mod workspace;
 
 // Re-export commonly used types at the crate root
 pub use config::NutConfig;
 pub use error::{NutError, Result};
+pub use types::{CreateWorkspaceRequest, ImportProgress, ImportRequest};
 pub use workspace::{Workspace, WorkspaceInfo};

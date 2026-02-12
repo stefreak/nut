@@ -16,10 +16,15 @@ miette.workspace = true
 octocrab.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+specta = { version = "2.0.0-rc.20", features = ["derive"], optional = true }
 thiserror.workspace = true
 tokio.workspace = true
 ulid.workspace = true
 walkdir.workspace = true
+
+[features]
+default = []
+typescript = ["specta"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }

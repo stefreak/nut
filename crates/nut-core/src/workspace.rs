@@ -19,15 +19,16 @@ pub struct Workspace {
 
 /// Information about a workspace for display purposes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct WorkspaceInfo {
     /// The workspace ULID identifier as a string.
     pub id: String,
-    /// When the workspace was created.
-    pub created_at: DateTime<Utc>,
+    /// ISO-8601 formatted creation timestamp.
+    pub created_at: String,
     /// User-provided description of the workspace.
     pub description: String,
     /// Filesystem path to the workspace.
-    pub path: PathBuf,
+    pub path: String,
 }
 
 impl Workspace {
@@ -163,16 +164,21 @@ pub async fn list_workspaces() -> Result<Vec<WorkspaceInfo>> {
                 
                 workspaces.push(WorkspaceInfo {
                     id: ulid.to_string(),
-                    created_at: datetime,
+                    created_at: datetime.to_rfc3339(),
                     description,
-                    path: entry.path(),
+                    path: entry.path().to_string_lossy().to_string(),
                 });
             }
         }
     }
 
     // Sort by timestamp, most recent first
-    workspaces.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    workspaces.sort_by(|a, b| {
+        // Parse timestamps back for sorting
+        let a_time = DateTime::parse_from_rfc3339(&a.created_at).ok();
+        let b_time = DateTime::parse_from_rfc3339(&b.created_at).ok();
+        b_time.cmp(&a_time)
+    });
 
     Ok(workspaces)
 }
@@ -201,8 +207,8 @@ pub async fn get_workspace_info(workspace_id: &str) -> Result<WorkspaceInfo> {
 
     Ok(WorkspaceInfo {
         id: ulid.to_string(),
-        created_at: datetime,
+        created_at: datetime.to_rfc3339(),
         description,
-        path: workspace_path,
+        path: workspace_path.to_string_lossy().to_string(),
     })
 }

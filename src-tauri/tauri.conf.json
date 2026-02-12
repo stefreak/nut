@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "nut",
+  "version": "0.1.0",
+  "identifier": "com.nut.app",
+  "build": {
+    "beforeDevCommand": "cd ../user-interface && npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "cd ../user-interface && npm run build",
+    "frontendDist": "../user-interface/build"
+  },
+  "bundle": {
+    "active": false
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "nut",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}
