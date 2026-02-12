@@ -13,6 +13,7 @@ import {
   commitRepositories,
   openInVSCode,
   importPackageRepository,
+  listWorkspaceRepositories,
   type Workspace, 
   type Repository, 
   type ActivityEvent 
@@ -46,8 +47,12 @@ export function WorkspaceView({ workspace, onImport, onWorkflowSaved }: Workspac
     async function loadWorkspaceData() {
       setIsLoading(true);
       try {
+        // Load repositories from backend
+        const repos = await listWorkspaceRepositories(workspace.id);
+        setRepositories(repos);
+        
+        // Load mock data for other features (to be implemented later)
         const data = await getWorkspaceData(workspace.id);
-        setRepositories(data.repositories);
         setPackageRepositories(data.packageRepositories);
         setPackageLinks(data.packageLinks);
         setActivities(data.activities);

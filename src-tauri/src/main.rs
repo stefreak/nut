@@ -9,6 +9,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::list_workspaces,
             commands::create_workspace,
+            commands::list_workspace_repositories,
             commands::import_repositories,
         ])
         .run(tauri::generate_context!())

@@ -12,6 +12,7 @@ fn main() {
         .commands(tauri_specta::collect_commands![
             commands::list_workspaces,
             commands::create_workspace,
+            commands::list_workspace_repositories,
             commands::import_repositories,
         ]);
 

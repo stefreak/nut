@@ -43,7 +43,6 @@ repository.workspace = true
 homepage.workspace = true
 categories = ["command-line-utilities", "development-tools"]
 exclude = ["/tests", "/.github", "/target", ".gitignore"]
-
 [[bin]]
 name = "nut"
 path = "src/main.rs"

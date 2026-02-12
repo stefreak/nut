@@ -5,7 +5,7 @@
   "identifier": "com.nut.app",
   "build": {
     "beforeDevCommand": "cd ../user-interface && npm run dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:3000",
     "beforeBuildCommand": "cd ../user-interface && npm run build",
     "frontendDist": "../user-interface/build"
   },

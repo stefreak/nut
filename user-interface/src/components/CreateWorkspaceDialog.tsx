@@ -4,7 +4,7 @@ import { WorkflowTemplate } from '../services/types';
 
 interface CreateWorkspaceDialogProps {
   onClose: () => void;
-  onCreate: (name: string, workflowId?: string) => void;
+  onCreate: (name: string, workflowId?: string) => Promise<void>;
   workflows: WorkflowTemplate[];
 }
 
@@ -16,11 +16,24 @@ export function CreateWorkspaceDialog({
   const [name, setName] = useState('');
   const [workflowId, setWorkflowId] = useState<string | undefined>(undefined);
   const [hoveredWorkflowId, setHoveredWorkflowId] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
-      onCreate(name.trim(), workflowId);
+    if (!name.trim()) {
+      return;
+    }
+
+    setError(null);
+    setIsCreating(true);
+
+    try {
+      await onCreate(name.trim(), workflowId);
+      // onCreate will close the dialog on success
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create workspace');
+      setIsCreating(false);
     }
   };
 
@@ -48,6 +61,13 @@ export function CreateWorkspaceDialog({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
           <div className="mb-6">
             <label className="block text-sm text-neutral-400 mb-2">
               Name *
@@ -58,7 +78,8 @@ export function CreateWorkspaceDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Project XYZ"
               autoFocus
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-neutral-600"
+              disabled={isCreating}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -170,16 +191,17 @@ export function CreateWorkspaceDialog({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors"
+              disabled={isCreating}
+              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!name.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-800 disabled:text-neutral-600 rounded-lg transition-colors"
+              disabled={!name.trim() || isCreating}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
-              Create Workspace
+              {isCreating ? 'Creating...' : 'Create Workspace'}
             </button>
           </div>
         </form>

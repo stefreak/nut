@@ -52,28 +52,24 @@ export default function App() {
   };
 
   const handleCreateWorkspace = async (name: string, workflowId?: string) => {
-    try {
-      const newWorkspace = await createWorkspace(name);
+    const newWorkspace = await createWorkspace(name);
+    
+    // If a workflow template was selected, apply it
+    if (workflowId) {
+      const templateData = await createWorkspaceFromTemplate(workflowId, name, newWorkspace.path);
+      // Apply the template data to the new workspace
+      await applyTemplateToWorkspace(newWorkspace.id, templateData.repositories, templateData.links);
       
-      // If a workflow template was selected, apply it
-      if (workflowId) {
-        const templateData = await createWorkspaceFromTemplate(workflowId, name, newWorkspace.path);
-        // Apply the template data to the new workspace
-        await applyTemplateToWorkspace(newWorkspace.id, templateData.repositories, templateData.links);
-        
-        // Restore task favorites from the workflow template
-        if (templateData.taskFavorites && templateData.taskFavorites.length > 0) {
-          localStorage.setItem(`nut-task-favorites-${newWorkspace.id}`, JSON.stringify(templateData.taskFavorites));
-        }
+      // Restore task favorites from the workflow template
+      if (templateData.taskFavorites && templateData.taskFavorites.length > 0) {
+        localStorage.setItem(`nut-task-favorites-${newWorkspace.id}`, JSON.stringify(templateData.taskFavorites));
       }
-      
-      setWorkspaces([newWorkspace, ...workspaces]);
-      setSelectedWorkspaceId(newWorkspace.id);
-      setSelectedWorkflowId(''); // Clear workflow selection
-      setShowCreateDialog(false);
-    } catch (error) {
-      console.error('Failed to create workspace:', error);
     }
+    
+    setWorkspaces([newWorkspace, ...workspaces]);
+    setSelectedWorkspaceId(newWorkspace.id);
+    setSelectedWorkflowId(''); // Clear workflow selection
+    setShowCreateDialog(false);
   };
 
   const handleImportComplete = (count: number) => {

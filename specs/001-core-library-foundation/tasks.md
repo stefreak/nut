@@ -153,17 +153,17 @@
 
 ### User Story 4: List Workspaces in Desktop UI
 
-- [ ] T051 [US4] Create user-interface/src/services/tauriWorkspaceService.ts importing generated types
-- [ ] T052 [US4] Implement getWorkspaces() in tauriWorkspaceService.ts using invoke('list_workspaces')
-- [ ] T053 [US4] Update user-interface/src/App.tsx to use tauriWorkspaceService.getWorkspaces()
-- [ ] T054 [US4] Test: Launch app and verify workspaces appear in sidebar matching CLI `nut list` output
+- [X] T051 [US4] Create user-interface/src/services/tauriWorkspaceService.ts importing generated types
+- [X] T052 [US4] Implement getWorkspaces() in tauriWorkspaceService.ts using invoke('list_workspaces')
+- [X] T053 [US4] Update user-interface/src/App.tsx to use tauriWorkspaceService.getWorkspaces()
+- [X] T054 [US4] Test: Launch app and verify workspaces appear in sidebar matching CLI `nut list` output
 
 ### User Story 5: Create Workspace in Desktop UI
 
-- [ ] T055 [US5] Implement createWorkspace(description) in tauriWorkspaceService.ts using invoke('create_workspace')
-- [ ] T056 [US5] Update CreateWorkspaceDialog.tsx to call tauriWorkspaceService.createWorkspace()
-- [ ] T057 [US5] Add error handling to CreateWorkspaceDialog.tsx for failed creation
-- [ ] T058 [US5] Test: Click create, enter description, verify workspace appears
+- [X] T055 [US5] Implement createWorkspace(description) in tauriWorkspaceService.ts using invoke('create_workspace')
+- [X] T056 [US5] Update CreateWorkspaceDialog.tsx to call tauriWorkspaceService.createWorkspace()
+- [X] T057 [US5] Add error handling to CreateWorkspaceDialog.tsx for failed creation
+- [X] T058 [US5] Test: Click create, enter description, verify workspace appears
 
 **Checkpoint**: Users can list and create workspaces in desktop UI
 

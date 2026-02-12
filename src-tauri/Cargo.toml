@@ -3,6 +3,7 @@ name = "nut-tauri"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
+default-run = "nut-tauri"
 
 [[bin]]
 name = "nut-tauri"
@@ -26,6 +27,7 @@ specta = { version = "2.0.0-rc.20", features = ["derive"] }
 specta-typescript = "0.0.7"
 tauri-specta = { version = "2.0.0-rc.20", features = ["typescript"] }
 tokio = { version = "1", features = ["full"] }
+octocrab = { workspace = true }
 
 [features]
 default = ["custom-protocol"]

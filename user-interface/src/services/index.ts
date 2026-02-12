@@ -42,10 +42,15 @@
 export * from './types';
 
 // Export workspace services
+// Using Tauri backend for create and list operations
 export {
   getWorkspaces,
-  getWorkspaceData,
   createWorkspace,
+} from './tauriWorkspaceService';
+
+// Other workspace operations still using the mock service
+export {
+  getWorkspaceData,
   deleteWorkspace,
   renameWorkspace,
   applyTemplateToWorkspace,
@@ -62,6 +67,11 @@ export {
   pullRepositories,
   pushRepositories,
 } from './repositoryService';
+
+// Export Tauri repository services
+export {
+  listWorkspaceRepositories,
+} from './tauriRepositoryService';
 
 // Export package services
 export {
