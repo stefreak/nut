@@ -1,0 +1,452 @@
+//! nut CLI - Workspace manager for multiple GitHub repositories.
+
+mod enter;
+
+use std::ffi::OsStr;
+use std::io::{Write, stdout};
+use std::os::unix::process::ExitStatusExt;
+
+use clap::{Parser, Subcommand};
+use miette::{IntoDiagnostic, Result};
+
+use nut_core::config::NutConfig;
+use nut_core::dirs::{get_cache_dir, get_data_local_dir};
+use nut_core::error::NutError;
+use nut_core::git;
+use nut_core::workspace::Workspace;
+
+#[derive(Parser)]
+#[command(arg_required_else_help = true, version, about, long_about = None)]
+struct Cli {
+    /// Turn debugging information on
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    debug: u8,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Create a new workspace and enter
+    Create {
+        /// lists test values
+        #[arg(short, long)]
+        description: String,
+    },
+    /// Enter an existing workspace
+    Enter {
+        /// Workspace ID
+        id: String,
+    },
+    /// List existing workspaces
+    List {},
+    /// Show status of a workspace
+    Status {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+    },
+    /// Run a command in each repository
+    Apply {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+
+        /// Path to an executable script to run
+        #[arg(short, long)]
+        script: Option<clap::builder::OsStr>,
+
+        /// Command and arguments to run (must come after --)
+        #[arg(trailing_var_arg = true, required = false)]
+        command: Vec<clap::builder::OsStr>,
+    },
+    /// Import repositories into a workspace
+    Import {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+
+        /// Do not actually clone, only print the repository names
+        #[arg(short, long)]
+        dry_run: bool,
+
+        /// Search query to find repositories (uses GitHub search syntax)
+        /// Example: "owner:stefreak language:rust -fork:true"
+        /// See https://github.com/search for query syntax
+        #[arg(short, long)]
+        query: Option<String>,
+
+        #[arg(short, long)]
+        github_token: Option<String>,
+
+        /// List of specific repositories to import (full names, e.g. owner/repo)
+        /// Mutually exclusive with --query option
+        #[arg(trailing_var_arg = true, required = false)]
+        full_repository_names: Vec<String>,
+    },
+    /// Print git cache directory
+    CacheDir {},
+    /// Print data directory containing workspaces
+    DataDir {},
+    /// Print workspace directory
+    WorkspaceDir {
+        /// Workspace ID
+        /// If not provided, uses the currently entered workspace
+        #[arg(short, long)]
+        workspace: Option<String>,
+    },
+    /// Configure nut settings
+    Config {
+        /// Set the workspace directory
+        #[arg(short, long)]
+        workspace_dir: Option<String>,
+    },
+}
+
+/// Process a repository: fetch commit info and clone
+async fn process_repo(
+    workspace_path: &std::path::Path,
+    crab: &octocrab::Octocrab,
+    details: octocrab::models::Repository,
+    dry_run: bool,
+) -> Result<()> {
+    let repo = crab.repos(
+        details.owner.ok_or(NutError::InvalidUtf8)?.login,
+        details.name,
+    );
+    let full_name = &details.full_name.ok_or(NutError::InvalidUtf8)?;
+    println!("{}", full_name);
+
+    if dry_run {
+        return Ok(());
+    }
+
+    let default_branch = &details.default_branch;
+    let latest_commit = match default_branch {
+        Some(d) => repo
+            .list_commits()
+            .branch(d)
+            .send()
+            .await
+            .unwrap_or_default()
+            .take_items()
+            .first()
+            .map(|c| c.sha.clone()),
+        None => None,
+    };
+    git::clone(workspace_path, full_name, &latest_commit, default_branch).await?;
+    Ok(())
+}
+
+/// Execute a command in each repository without using a subshell.
+///
+/// Discovers all git repositories in the workspace and executes the specified command
+/// in each one. The command is executed directly (not in a shell).
+async fn apply_command(workspace_dir: &std::path::Path, command: Vec<&OsStr>) -> nut_core::error::Result<()> {
+    let repos = git::find_repositories(workspace_dir)?;
+
+    if repos.is_empty() {
+        println!("No repositories found in workspace");
+        return Ok(());
+    }
+
+    // Execute command in each repository
+    let command_name = &command[0];
+    let args = &command[1..];
+
+    for repo_path_relative in repos {
+        println!("==> {} <==", repo_path_relative.display());
+
+        let status = tokio::process::Command::new(command_name)
+            .args(args)
+            .current_dir(workspace_dir.join(&repo_path_relative))
+            .status()
+            .await
+            .map_err(|e| NutError::CommandFailed {
+                repo: repo_path_relative.display().to_string(),
+                source: e,
+            })?;
+
+        if !status.success() {
+            // render the error using miette
+            let error: miette::Result<()> = Err(NutError::CommandFailed {
+                repo: repo_path_relative.display().to_string(),
+                source: std::io::Error::other(if let Some(code) = status.code() {
+                    format!("Command exited with status code {}", code)
+                } else if let Some(signal) = status.signal() {
+                    format!("Command terminated by signal {}", signal)
+                } else {
+                    "Command terminated for unknown reason".to_string()
+                }),
+            })
+            .into_diagnostic();
+
+            // this will automatically render fancy miette errors due to global hook in main.rs
+            eprintln!();
+            eprintln!("{:?}", error.err().unwrap());
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    // Install the fancy error handler with default theme
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            miette::GraphicalReportHandler::new().with_theme(miette::GraphicalTheme::default()),
+        )
+    }))?;
+
+    // You can see how many times a particular flag or argument occurred
+    // Note, only flags can have multiple occurrences
+    match cli.debug {
+        0 => {}
+        1 => println!("Debug mode is kind of on"),
+        2 => println!("Debug mode is on"),
+        _ => println!("Don't be crazy"),
+    }
+
+    // You can check for the existence of subcommands, and if found use their
+    // matches just as you would the top level cmd
+    match &cli.command {
+        Some(Commands::Create { description }) => {
+            if nut_core::workspace::is_in_workspace().await {
+                return Err(NutError::AlreadyInWorkspace.into());
+            }
+
+            let workspace = nut_core::workspace::create_workspace(description.clone()).await?;
+
+            enter::enter(workspace.id).await?;
+        }
+        Some(Commands::Enter { id }) => {
+            if nut_core::workspace::is_in_workspace().await {
+                return Err(NutError::AlreadyInWorkspace.into());
+            }
+
+            let ulid = id.parse().map_err(|e| NutError::InvalidWorkspaceId {
+                id: id.clone(),
+                source: e,
+            })?;
+            enter::enter(ulid).await?;
+        }
+        Some(Commands::List {}) => {
+            let workspaces = nut_core::workspace::list_workspaces().await?;
+
+            // Display workspaces
+            for ws in workspaces {
+                println!("{}", ws.id);
+                println!("  Created: {}", ws.created_at.format("%Y-%m-%d %H:%M:%S"));
+                println!("  {}", ws.description);
+                println!();
+            }
+        }
+        Some(Commands::Status { workspace }) => {
+            let workspace = Workspace::resolve(workspace).await?;
+            let statuses = git::get_all_repos_status(&workspace.path).await?;
+
+            // Count repositories with and without changes
+            let repos_with_changes: Vec<_> = statuses.iter().filter(|s| s.has_changes).collect();
+            let total_repos = statuses.len();
+            let clean_repos = total_repos - repos_with_changes.len();
+
+            // Print summary
+            println!("Workspace status:");
+            println!("  {} repositories total", total_repos);
+            println!(
+                "  {} clean, {} with changes",
+                clean_repos,
+                repos_with_changes.len()
+            );
+            println!();
+
+            // Print details for repos with changes
+            if repos_with_changes.is_empty() {
+                println!("All repositories are clean.");
+            } else {
+                println!("Repositories with changes:");
+                println!();
+
+                for status in repos_with_changes {
+                    println!(
+                        "  {} ({})",
+                        status.path_relative.to_string_lossy(),
+                        status.current_branch
+                    );
+
+                    if status.staged_files > 0 {
+                        println!("    {} file(s) with staged changes", status.staged_files);
+                    }
+                    if status.modified_files > 0 {
+                        println!(
+                            "    {} file(s) with unstaged changes",
+                            status.modified_files
+                        );
+                    }
+                    if status.untracked_files > 0 {
+                        println!("    {} untracked file(s)", status.untracked_files);
+                    }
+                    println!();
+                }
+            }
+        }
+        Some(Commands::Apply {
+            workspace,
+            script,
+            command,
+        }) => {
+            let workspace = Workspace::resolve(workspace).await?;
+
+            // Handle script mode
+            if let Some(script_path) = script {
+                let absolute_script_path =
+                    tokio::fs::canonicalize(script_path).await.map_err(|e| {
+                        NutError::ScriptPathInvalid {
+                            path: script_path.display().to_string(),
+                            source: e,
+                        }
+                    })?;
+
+                // only for unix
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let metadata =
+                        tokio::fs::metadata(&absolute_script_path)
+                            .await
+                            .map_err(|e| NutError::ScriptPathInvalid {
+                                path: script_path.display().to_string(),
+                                source: e,
+                            })?;
+                    let permissions = metadata.permissions();
+                    if (permissions.mode() & 0o111) == 0 {
+                        return Err(NutError::ScriptNotExecutable {
+                            path: script_path.display().to_string(),
+                        }
+                        .into());
+                    }
+                }
+
+                let mut args: Vec<&OsStr> = vec![absolute_script_path.as_os_str()];
+                args.extend(command.iter().map(|s| s.as_os_str()));
+                apply_command(&workspace.path, args).await?;
+            } else {
+                // Direct command mode
+                if command.is_empty() {
+                    return Err(NutError::ApplyMissingCommand.into());
+                }
+
+                apply_command(
+                    &workspace.path,
+                    command.iter().map(|s| s.as_os_str()).collect(),
+                )
+                .await?;
+            }
+        }
+        Some(Commands::Import {
+            workspace,
+            dry_run,
+            github_token,
+            query,
+            full_repository_names,
+        }) => {
+            // Validate arguments first before checking for token
+            if query.is_some() && !full_repository_names.is_empty() {
+                return Err(NutError::QueryAndPositionalArgsConflict.into());
+            }
+            if query.is_none() && full_repository_names.is_empty() {
+                return Err(NutError::InvalidArgumentCombination.into());
+            }
+
+            let workspace = Workspace::resolve(workspace).await?;
+
+            let token = nut_core::gh::get_token_with_fallback(github_token.as_deref()).await?;
+
+            let crab = octocrab::instance()
+                .user_access_token(token.into_boxed_str())
+                .into_diagnostic()?;
+
+            if let Some(q) = query {
+                // Use search API with query
+                let mut page = crab
+                    .search()
+                    .repositories(q)
+                    .send()
+                    .await
+                    .into_diagnostic()?;
+
+                loop {
+                    for details in page.items {
+                        process_repo(&workspace.path, &crab, details, *dry_run).await?;
+                    }
+
+                    page = match crab
+                        .get_page::<octocrab::models::Repository>(&page.next)
+                        .await
+                        .into_diagnostic()?
+                    {
+                        Some(next_page) => next_page,
+                        None => break,
+                    }
+                }
+            } else {
+                // Import specific repositories by full name
+                for full_name in full_repository_names {
+                    let parts: Vec<&str> = full_name.split('/').collect();
+                    if parts.len() != 2 {
+                        return Err(NutError::InvalidRepositoryName {
+                            name: full_name.clone(),
+                        }
+                        .into());
+                    }
+                    let owner = parts[0];
+                    let repo = parts[1];
+                    let repo_handler = crab.repos(owner, repo);
+                    let details = repo_handler.get().await.into_diagnostic()?;
+                    process_repo(&workspace.path, &crab, details, *dry_run).await?;
+                }
+            }
+        }
+        Some(Commands::CacheDir {}) => {
+            write_path_to_stdout(get_cache_dir().await?)?;
+        }
+        Some(Commands::DataDir {}) => {
+            write_path_to_stdout(get_data_local_dir().await?)?;
+        }
+        Some(Commands::WorkspaceDir { workspace }) => {
+            let workspace = Workspace::resolve(workspace).await?;
+            write_path_to_stdout(workspace.path.clone())?;
+        }
+        Some(Commands::Config { workspace_dir }) => {
+            let mut config = NutConfig::load()?;
+
+            if let Some(dir) = workspace_dir {
+                let path = std::path::PathBuf::from(dir);
+                config.workspace_dir = Some(path.clone());
+                println!("Workspace directory set to: {}", path.display());
+            }
+
+            config.save()?;
+        }
+        None => {}
+    }
+
+    Ok(())
+}
+
+// let's preserves the original path even if it does not happen to be valid utf-8, which is valid in some platforms.
+fn write_path_to_stdout(path: std::path::PathBuf) -> Result<()> {
+    stdout()
+        .write(path.into_os_string().into_encoded_bytes().as_slice())
+        .into_diagnostic()?;
+    println!();
+    Ok(())
+}

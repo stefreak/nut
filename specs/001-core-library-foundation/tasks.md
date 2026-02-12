@@ -15,11 +15,11 @@
 
 **Purpose**: Create Cargo workspace structure and initialize crates
 
-- [ ] T001 Create Cargo workspace in root Cargo.toml with members: crates/nut-core, crates/nut-cli
-- [ ] T002 [P] Initialize crates/nut-core crate with Cargo.toml (dependencies: tokio, ulid, serde, thiserror, directories, config, octocrab, walkdir)
-- [ ] T003 [P] Initialize crates/nut-cli crate with Cargo.toml (dependencies: nut-core, clap, miette, tokio)
-- [ ] T004 [P] Create crates/nut-core/src/lib.rs with public module declarations
-- [ ] T005 [P] Create crates/nut-core/tests/ directory for integration tests
+- [X] T001 Create Cargo workspace in root Cargo.toml with members: crates/nut-core, crates/nut-cli
+- [X] T002 [P] Initialize crates/nut-core crate with Cargo.toml (dependencies: tokio, ulid, serde, thiserror, directories, config, octocrab, walkdir)
+- [X] T003 [P] Initialize crates/nut-cli crate with Cargo.toml (dependencies: nut-core, clap, miette, tokio)
+- [X] T004 [P] Create crates/nut-core/src/lib.rs with public module declarations
+- [X] T005 [P] Create crates/nut-core/tests/ directory for integration tests
 
 ---
 
@@ -31,34 +31,34 @@
 
 ### Move Config & Directory Operations
 
-- [ ] T006 [P] Move src/config.rs to crates/nut-core/src/config.rs with NutConfig struct
-- [ ] T007 [P] Move src/dirs.rs to crates/nut-core/src/dirs.rs (get_data_local_dir, get_cache_dir functions)
-- [ ] T008 Update crates/nut-core/src/dirs.rs to use config::NutConfig from same crate
+- [X] T006 [P] Move src/config.rs to crates/nut-core/src/config.rs with NutConfig struct
+- [X] T007 [P] Move src/dirs.rs to crates/nut-core/src/dirs.rs (get_data_local_dir, get_cache_dir functions)
+- [X] T008 Update crates/nut-core/src/dirs.rs to use config::NutConfig from same crate
 
 ### Move Error Types
 
-- [ ] T009 Move src/error.rs to crates/nut-core/src/error.rs (all NutError variants needed by core)
+- [X] T009 Move src/error.rs to crates/nut-core/src/error.rs (all NutError variants needed by core)
 
 ### Move Git Operations
 
-- [ ] T010 Move src/git.rs to crates/nut-core/src/git.rs (clone, get_all_repos_status functions only; apply_command stays CLI-only)
-- [ ] T011 Update crates/nut-core/src/git.rs imports to use local error and dirs modules
+- [X] T010 Move src/git.rs to crates/nut-core/src/git.rs (clone, get_all_repos_status functions only; apply_command stays CLI-only)
+- [X] T011 Update crates/nut-core/src/git.rs imports to use local error and dirs modules
 
 ### Move GitHub Integration
 
-- [ ] T012 Move src/gh.rs to crates/nut-core/src/gh.rs (GitProtocol, get_auth_token, get_git_protocol, and fallback functions)
+- [X] T012 Move src/gh.rs to crates/nut-core/src/gh.rs (GitProtocol, get_auth_token, get_git_protocol, and fallback functions)
 
 ### Move Workspace Operations
 
-- [ ] T013 Move Workspace struct from src/workspace.rs to crates/nut-core/src/workspace.rs
-- [ ] T014 Add workspace creation function to crates/nut-core/src/workspace.rs: create_workspace(description: String) -> Result<Workspace>
-- [ ] T015 Add workspace listing function to crates/nut-core/src/workspace.rs: list_workspaces() -> Result<Vec<WorkspaceInfo>>
-- [ ] T016 Add WorkspaceInfo struct in crates/nut-core/src/workspace.rs (id, created_at, description, path)
+- [X] T013 Move Workspace struct from src/workspace.rs to crates/nut-core/src/workspace.rs
+- [X] T014 Add workspace creation function to crates/nut-core/src/workspace.rs: create_workspace(description: String) -> Result<Workspace>
+- [X] T015 Add workspace listing function to crates/nut-core/src/workspace.rs: list_workspaces() -> Result<Vec<WorkspaceInfo>>
+- [X] T016 Add WorkspaceInfo struct in crates/nut-core/src/workspace.rs (id, created_at, description, path)
 
 ### Core Library API
 
-- [ ] T017 Export public API from crates/nut-core/src/lib.rs (workspace, config, dirs, git, gh, error modules)
-- [ ] T018 Add integration test in crates/nut-core/tests/workspace_tests.rs for create and list operations
+- [X] T017 Export public API from crates/nut-core/src/lib.rs (workspace, config, dirs, git, gh, error modules)
+- [X] T018 Add integration test in crates/nut-core/tests/workspace_tests.rs for create and list operations
 
 **Checkpoint**: Core library compiles and tests pass - CLI refactoring can now begin
 
@@ -72,32 +72,32 @@
 
 ### Setup CLI Crate
 
-- [ ] T019 [US1-3] Copy src/main.rs to crates/nut-cli/src/main.rs
-- [ ] T020 [US1-3] Copy src/enter.rs to crates/nut-cli/src/enter.rs (CLI-only functionality)
-- [ ] T021 [US1-3] Update crates/nut-cli imports to use nut_core crate
+- [X] T019 [US1-3] Copy src/main.rs to crates/nut-cli/src/main.rs
+- [X] T020 [US1-3] Copy src/enter.rs to crates/nut-cli/src/enter.rs (CLI-only functionality)
+- [X] T021 [US1-3] Update crates/nut-cli imports to use nut_core crate
 
 ### User Story 1: Create Workspace via CLI
 
-- [ ] T022 [US1] Update Create command in crates/nut-cli/src/main.rs to call nut_core::workspace::create_workspace()
-- [ ] T023 [US1] Update Create command in crates/nut-cli/src/main.rs to check if already in workspace (move workspace detection to core), then call enter from CLI after creation
+- [X] T022 [US1] Update Create command in crates/nut-cli/src/main.rs to call nut_core::workspace::create_workspace()
+- [X] T023 [US1] Update Create command in crates/nut-cli/src/main.rs to check if already in workspace (move workspace detection to core), then call enter from CLI after creation
 - [ ] T024 [US1] Test: Run `nut create -d "test"` and verify workspace created with ULID directory
 
 ### User Story 2: List Workspaces via CLI
 
-- [ ] T025 [US2] Update List command in crates/nut-cli/src/main.rs to call nut_core::workspace::list_workspaces()
-- [ ] T026 [US2] Preserve exact output format: ULID, "Created: YYYY-MM-DD HH:MM:SS", description
+- [X] T025 [US2] Update List command in crates/nut-cli/src/main.rs to call nut_core::workspace::list_workspaces()
+- [X] T026 [US2] Preserve exact output format: ULID, "Created: YYYY-MM-DD HH:MM:SS", description
 - [ ] T027 [US2] Test: Run `nut list` and verify output matches previous behavior (sorted by creation, most recent first)
 
 ### User Story 3: Import Repositories via CLI
 
-- [ ] T028 [US3] Update Import command in crates/nut-cli/src/main.rs to use nut_core::git and nut_core::gh functions
+- [X] T028 [US3] Update Import command in crates/nut-cli/src/main.rs to use nut_core::git and nut_core::gh functions
 - [ ] T029 [US3] Test: Run `nut import owner/repo` and verify repository cloned
 - [ ] T030 [US3] Test: Run `nut import -q "owner:test"` and verify search query works
 - [ ] T031 [US3] Test: Run `nut import --dry-run owner/repo` and verify no cloning occurs
 
 ### CLI Integration  Tests
 
-- [ ] T032 [US1-3] Run existing tests/integration_tests.rs and verify all pass
+- [X] T032 [US1-3] Run existing tests/integration_tests.rs and verify all pass
 - [ ] T032b [US1-3] Compare CLI output byte-for-byte before/after refactoring for create, list, and import commands
 - [ ] T033 [US1-3] Update Cargo.toml [[bin]] section to point to crates/nut-cli/src/main.rs
 - [ ] T034 [US1-3] Remove old src/ directory after verifying CLI works

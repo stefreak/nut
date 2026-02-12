@@ -1,0 +1,22 @@
+[package]
+name = "nut-cli"
+version.workspace = true
+edition.workspace = true
+description = "CLI for nut workspace manager"
+license-file.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "nut"
+path = "src/main.rs"
+
+[dependencies]
+nut-core.workspace = true
+chrono.workspace = true
+clap.workspace = true
+futures-util.workspace = true
+miette.workspace = true
+octocrab.workspace = true
+tokio.workspace = true
+ulid.workspace = true

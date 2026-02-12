@@ -1,12 +1,46 @@
-[package]
-name = "nut-workspace"
+[workspace]
+members = ["crates/nut-core", "crates/nut-cli"]
+resolver = "2"
+
+[workspace.package]
 version = "0.4.0"
 edition = "2024"
-description = "A workspace manager for working with multiple GitHub repositories simultaneously."
 license-file = "LICENSE.md"
-readme = "README.md"
 repository = "https://github.com/stefreak/nut"
 homepage = "https://github.com/stefreak/nut"
+
+[workspace.dependencies]
+# Shared dependencies
+tokio = { version = "1.49.0", features = ["full", "tokio-macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+ulid = "1.2.1"
+
+# Core library dependencies
+chrono = "0.4.43"
+config = "0.15"
+directories = "6.0.0"
+futures-util = "0.3.31"
+octocrab = { version = "0.49.5", features = ["stream"] }
+walkdir = "2.5.0"
+
+# CLI dependencies
+clap = { version = "4.5.54", features = ["derive", "string"] }
+miette = { version = "7", features = ["fancy"] }
+
+# Internal crates
+nut-core = { path = "crates/nut-core" }
+
+[package]
+name = "nut-workspace"
+version.workspace = true
+edition.workspace = true
+description = "A workspace manager for working with multiple GitHub repositories simultaneously."
+license-file.workspace = true
+readme = "README.md"
+repository.workspace = true
+homepage.workspace = true
 categories = ["command-line-utilities", "development-tools"]
 exclude = ["/tests", "/.github", "/target", ".gitignore"]
 
@@ -38,16 +72,16 @@ path = "src/main.rs"
 maintenance = { status = "experimental" }
 
 [dependencies]
-chrono = "0.4.43"
-clap = { version = "4.5.54", features = ["derive", "string"] }
-config = "0.15"
-directories = "6.0.0"
-futures-util = "0.3.31"
-miette = { version = "7", features = ["fancy"] }
-octocrab = { version = "0.49.5", features = ["stream"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "2"
-tokio = { version = "1.49.0", features = ["full", "tokio-macros"] }
-ulid = "1.2.1"
-walkdir = "2.5.0"
+chrono.workspace = true
+clap.workspace = true
+config.workspace = true
+directories.workspace = true
+futures-util.workspace = true
+miette.workspace = true
+octocrab.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+ulid.workspace = true
+walkdir.workspace = true

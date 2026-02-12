@@ -1,6 +1,10 @@
-use crate::error::Result;
+//! GitHub integration for nut.
+//!
+//! Provides functions for GitHub authentication and git protocol configuration.
 
-/// Git protocol to use for cloning repositories
+use crate::error::{NutError, Result};
+
+/// Git protocol to use for cloning repositories.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GitProtocol {
     Https,
@@ -8,7 +12,7 @@ pub enum GitProtocol {
 }
 
 impl GitProtocol {
-    /// Convert to a git clone URL for a GitHub repository
+    /// Convert to a git clone URL for a GitHub repository.
     pub fn to_clone_url(self, host: &str, full_name: &str) -> String {
         match self {
             GitProtocol::Https => format!("https://{host}/{full_name}.git"),
@@ -17,8 +21,9 @@ impl GitProtocol {
     }
 }
 
-/// Get the git protocol from gh config
-/// Returns None if gh is not available or config is not set
+/// Get the git protocol from gh config.
+///
+/// Returns None if gh is not available or config is not set.
 pub async fn get_git_protocol(host: &str) -> Option<GitProtocol> {
     let output = tokio::process::Command::new("gh")
         .args(["config", "get", "git_protocol", "-h", host])
@@ -38,8 +43,9 @@ pub async fn get_git_protocol(host: &str) -> Option<GitProtocol> {
     }
 }
 
-/// Get GitHub token from gh auth token
-/// Returns None if gh is not available or not authenticated
+/// Get GitHub token from gh auth token.
+///
+/// Returns None if gh is not available or not authenticated.
 pub async fn get_auth_token() -> Option<String> {
     let output = tokio::process::Command::new("gh")
         .args(["auth", "token"])
@@ -52,29 +58,33 @@ pub async fn get_auth_token() -> Option<String> {
     }
 
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if token.is_empty() { None } else { Some(token) }
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
 }
 
-/// Get the git protocol to use for cloning, with fallback logic
+/// Get the git protocol to use for cloning, with fallback logic.
+///
 /// 1. Try to get from gh config
 /// 2. Fall back to HTTPS (gh default)
 pub async fn get_git_protocol_with_fallback(host: &str) -> GitProtocol {
     get_git_protocol(host).await.unwrap_or(GitProtocol::Https)
 }
 
-/// Get GitHub token with fallback logic
+/// Get GitHub token with fallback logic.
+///
 /// 1. Use provided token if available
 /// 2. Try to get from gh auth token
-/// 3. Return None if neither available
+/// 3. Return error if neither available
 pub async fn get_token_with_fallback(provided_token: Option<&str>) -> Result<String> {
     if let Some(token) = provided_token {
         return Ok(token.to_string());
     }
 
-    get_auth_token().await.ok_or_else(|| {
-        crate::error::NutError::MissingGitHubToken {
-            message: "No GitHub token provided and gh CLI is not authenticated. Either provide --github-token or run 'gh auth login'".to_string(),
-        }
+    get_auth_token().await.ok_or_else(|| NutError::MissingGitHubToken {
+        message: "No GitHub token provided and gh CLI is not authenticated. Either provide --github-token or run 'gh auth login'".to_string(),
     })
 }
 
@@ -116,14 +126,5 @@ mod tests {
         let result = get_token_with_fallback(Some(token)).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), token);
-    }
-
-    #[tokio::test]
-    async fn test_get_token_with_fallback_fails_without_token_and_gh() {
-        // When no token provided and gh not available, should fail
-        let result = get_token_with_fallback(None).await;
-        // This should fail unless gh is authenticated on the test machine
-        // We can't guarantee gh auth status, so we just verify it returns a result
-        assert!(result.is_ok() || result.is_err());
     }
 }
