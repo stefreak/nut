@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/stefreak/nut/compare/v0.4.0...v0.4.1) - 2026-03-18
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump the cargo group across 1 directory with 2 updates ([#97](https://github.com/stefreak/nut/pull/97))
+- *(deps)* bump clap from 4.5.54 to 4.5.60 ([#86](https://github.com/stefreak/nut/pull/86))
+- *(deps)* bump futures-util from 0.3.31 to 0.3.32 ([#83](https://github.com/stefreak/nut/pull/83))
+- *(deps)* bump jsonwebtoken in the cargo group across 1 directory ([#75](https://github.com/stefreak/nut/pull/75))
+- *(deps)* bump chrono from 0.4.43 to 0.4.44 ([#87](https://github.com/stefreak/nut/pull/87))
+- *(deps)* bump tokio from 1.49.0 to 1.50.0 ([#91](https://github.com/stefreak/nut/pull/91))
+- *(deps)* bump thiserror from 2.0.17 to 2.0.18 ([#64](https://github.com/stefreak/nut/pull/64))
+- *(deps)* bump chrono from 0.4.42 to 0.4.43 ([#65](https://github.com/stefreak/nut/pull/65))
+
 ## [0.4.0](https://github.com/stefreak/nut/compare/v0.3.1...v0.4.0) - 2026-01-07
 
 ### <!-- 0 -->New features
