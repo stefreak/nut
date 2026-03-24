@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/stefreak/nut/compare/v0.4.1...v0.4.2) - 2026-03-24
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump config from 0.15.19 to 0.15.22 ([#101](https://github.com/stefreak/nut/pull/101))
+- *(deps)* bump clap from 4.5.60 to 4.6.0 ([#103](https://github.com/stefreak/nut/pull/103))
+- *(deps)* bump octocrab from 0.49.5 to 0.49.6 ([#99](https://github.com/stefreak/nut/pull/99))
+
 ## [0.4.1](https://github.com/stefreak/nut/compare/v0.4.0...v0.4.1) - 2026-03-18
 
 ### <!-- 4 -->Miscellaneous
