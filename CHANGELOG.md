@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3](https://github.com/stefreak/nut/compare/v0.4.2...v0.4.3) - 2026-04-17
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump octocrab from 0.49.6 to 0.49.7 ([#106](https://github.com/stefreak/nut/pull/106))
+- *(deps)* bump tokio from 1.50.0 to 1.51.1 ([#109](https://github.com/stefreak/nut/pull/109))
+
 ## [0.4.2](https://github.com/stefreak/nut/compare/v0.4.1...v0.4.2) - 2026-03-24
 
 ### <!-- 4 -->Miscellaneous
