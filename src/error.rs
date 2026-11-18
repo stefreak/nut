@@ -37,7 +37,7 @@ pub enum NutError {
     CreateDirectoryFailed {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to read directory: {path}")]
@@ -45,7 +45,7 @@ pub enum NutError {
     ReadDirectoryFailed {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to read file: {path}")]
@@ -53,7 +53,7 @@ pub enum NutError {
     ReadFileFailed {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to write file: {path}")]
@@ -61,7 +61,7 @@ pub enum NutError {
     WriteFileFailed {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to change directory: {path}")]
@@ -69,7 +69,7 @@ pub enum NutError {
     ChangeDirectoryFailed {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Invalid workspace ID: {id}")]
@@ -80,21 +80,21 @@ pub enum NutError {
     InvalidWorkspaceId {
         id: String,
         #[source]
-        source: ulid::DecodeError,
+        err: ulid::DecodeError,
     },
 
     #[error("Failed to get current directory")]
     #[diagnostic(code(nut::io::current_dir))]
     GetCurrentDirectoryFailed {
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to get current executable path")]
     #[diagnostic(code(nut::io::current_exe))]
     GetCurrentExecutableFailed {
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Failed to get project directories")]
@@ -104,7 +104,7 @@ pub enum NutError {
     )]
     ProjectDirectoriesUnavailable {
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Git command failed: {command}")]
@@ -112,7 +112,7 @@ pub enum NutError {
     GitCommandFailed {
         command: String,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Git operation failed: {operation}")]
@@ -123,14 +123,14 @@ pub enum NutError {
     #[diagnostic(code(nut::shell::spawn_failed))]
     ShellSpawnFailed {
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("GitHub API error")]
     #[diagnostic(code(nut::github::api_error))]
     GitHubApiError {
         #[from]
-        source: octocrab::Error,
+        err: octocrab::Error,
     },
 
     #[error("Invalid UTF-8 in git output")]
@@ -186,7 +186,7 @@ pub enum NutError {
     ScriptPathInvalid {
         path: String,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
 
     #[error("Command execution failed in repository: {repo}")]
@@ -194,7 +194,7 @@ pub enum NutError {
     CommandFailed {
         repo: String,
         #[source]
-        source: std::io::Error,
+        err: std::io::Error,
     },
     #[error("GitHub token required")]
     #[diagnostic(code(nut::github::missing_token), help("{message}"))]
@@ -211,14 +211,14 @@ pub enum NutError {
     #[diagnostic(code(nut::config::load_failed))]
     ConfigLoadFailed {
         #[source]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        err: Box<dyn std::error::Error + Send + Sync>,
     },
 
     #[error("Failed to save configuration")]
     #[diagnostic(code(nut::config::save_failed))]
     ConfigSaveFailed {
         #[source]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        err: Box<dyn std::error::Error + Send + Sync>,
     },
 
     #[error("HOME directory not found")]
@@ -228,7 +228,7 @@ pub enum NutError {
     )]
     HomeDirectoryNotFound {
         #[source]
-        source: std::env::VarError,
+        err: std::env::VarError,
     },
 }
 
