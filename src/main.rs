@@ -239,7 +239,7 @@ async fn main() -> Result<()> {
             }
 
             // Sort by timestamp, most recent first
-            workspaces.sort_by(|a, b| b.1.cmp(&a.1));
+            workspaces.sort_by_key(|a| std::cmp::Reverse(a.1));
 
             // Display workspaces
             for (ulid, datetime, description) in workspaces {
