@@ -33,7 +33,9 @@ jobs:
           persist-credentials: false
       - &install-rust
         name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6d9817901c499d6b02debbb57edb38d33daa680b # stable
+        uses: step-security/dtolnay-rust-toolchain@8dd607977d06adf4ed49b190381e74c17a9dd25f # v1.0.0
+        with:
+          toolchain: 1.99.1
       - name: Run release-plz
         uses: release-plz/action@a80d79efe0a195618acb02a4089d55fe74d2505f # v0.5.136
         with:
