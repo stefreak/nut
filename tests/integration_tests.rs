@@ -60,11 +60,13 @@ impl TestEnv {
 
     /// Get the path to the nut binary
     fn nut_binary() -> PathBuf {
-        let mut path = env::current_exe().unwrap();
-        path.pop(); // Remove test binary name
-        path.pop(); // Remove 'deps' directory
-        path.push("nut");
-        path
+        // Cargo sets CARGO_BIN_EXE_<name> for each binary target when running
+        // integration tests, pointing at the built binary regardless of cargo's
+        // target directory layout.
+        PathBuf::from(
+            env::var("CARGO_BIN_EXE_nut")
+                .expect("CARGO_BIN_EXE_nut is set by cargo for integration tests"),
+        )
     }
 
     fn nut_working_directory(&self, workspace_id: Option<ulid::Ulid>) -> PathBuf {
