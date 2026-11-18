@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4](https://github.com/stefreak/nut/compare/v0.4.3...v0.4.4) - 2026-11-18
+
+### <!-- 4 -->Miscellaneous
+
+- *(deps)* bump the cargo group across 1 directory with 2 updates ([#141](https://github.com/stefreak/nut/pull/141))
+- *(deps)* bump tokio from 1.51.1 to 1.52.3 ([#125](https://github.com/stefreak/nut/pull/125))
+- *(deps)* bump config from 0.15.22 to 0.15.23 ([#126](https://github.com/stefreak/nut/pull/126))
+- *(deps)* bump clap from 4.6.0 to 4.6.1 ([#116](https://github.com/stefreak/nut/pull/116))
+- *(deps)* bump the cargo group across 1 directory with 2 updates ([#115](https://github.com/stefreak/nut/pull/115))
+- *(deps)* bump octocrab from 0.49.7 to 0.51.0 ([#128](https://github.com/stefreak/nut/pull/128))
+
+### Refactor
+
+- *(error)* name source fields err instead of source
+- replace sort_by with sort_by_key to satisfy clippy
+
 ## [0.4.3](https://github.com/stefreak/nut/compare/v0.4.2...v0.4.3) - 2026-04-17
 
 ### <!-- 4 -->Miscellaneous
