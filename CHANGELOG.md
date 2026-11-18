@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.4](https://github.com/stefreak/nut/compare/v0.4.3...v0.4.4) - 2026-11-18
 
-### <!-- 1 -->Bug fixes
-
-- replace sort_by with sort_by_key to satisfy clippy
-
 ### <!-- 4 -->Miscellaneous
 
 - *(deps)* bump the cargo group across 1 directory with 2 updates ([#141](https://github.com/stefreak/nut/pull/141))
@@ -25,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactor
 
 - *(error)* name source fields err instead of source
+- replace sort_by with sort_by_key to satisfy clippy
 
 ## [0.4.3](https://github.com/stefreak/nut/compare/v0.4.2...v0.4.3) - 2026-04-17
 
