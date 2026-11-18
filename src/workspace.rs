@@ -16,7 +16,7 @@ impl Workspace {
         let ulid = match workspace_arg {
             Some(id) => id.parse().map_err(|e| NutError::InvalidWorkspaceId {
                 id: id.clone(),
-                source: e,
+                err: e,
             })?,
             None => enter::get_entered_workspace().await?,
         };

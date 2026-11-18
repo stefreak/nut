@@ -182,7 +182,7 @@ async fn main() -> Result<()> {
                 .await
                 .map_err(|e| NutError::CreateDirectoryFailed {
                     path: workspace_path.clone(),
-                    source: e,
+                    err: e,
                 })?;
 
             // write description file
@@ -193,7 +193,7 @@ async fn main() -> Result<()> {
                 .await
                 .map_err(|e| NutError::WriteFileFailed {
                     path: desc_path,
-                    source: e,
+                    err: e,
                 })?;
 
             enter::enter(ulid).await?;
@@ -205,7 +205,7 @@ async fn main() -> Result<()> {
 
             let ulid = id.parse().map_err(|e| NutError::InvalidWorkspaceId {
                 id: id.clone(),
-                source: e,
+                err: e,
             })?;
             enter::enter(ulid).await?;
         }
@@ -214,7 +214,7 @@ async fn main() -> Result<()> {
             let mut entries = tokio::fs::read_dir(&data_local_dir).await.map_err(|e| {
                 NutError::ReadDirectoryFailed {
                     path: data_local_dir.clone(),
-                    source: e,
+                    err: e,
                 }
             })?;
 
@@ -311,7 +311,7 @@ async fn main() -> Result<()> {
                     tokio::fs::canonicalize(script_path).await.map_err(|e| {
                         NutError::ScriptPathInvalid {
                             path: script_path.display().to_string(),
-                            source: e,
+                            err: e,
                         }
                     })?;
 
@@ -324,7 +324,7 @@ async fn main() -> Result<()> {
                             .await
                             .map_err(|e| NutError::ScriptPathInvalid {
                                 path: script_path.display().to_string(),
-                                source: e,
+                                err: e,
                             })?;
                     let permissions = metadata.permissions();
                     if (permissions.mode() & 0o111) == 0 {

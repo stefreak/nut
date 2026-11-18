@@ -12,12 +12,12 @@ pub async fn enter(ulid: ulid::Ulid) -> Result<()> {
     // add location of nut binary to PATH
     let path = std::env::var("PATH").unwrap_or("".to_string());
     let nut_binary_path =
-        std::env::current_exe().map_err(|e| NutError::GetCurrentExecutableFailed { source: e })?;
+        std::env::current_exe().map_err(|e| NutError::GetCurrentExecutableFailed { err: e })?;
     let nut_binary_dir =
         nut_binary_path
             .parent()
             .ok_or_else(|| NutError::GetCurrentExecutableFailed {
-                source: std::io::Error::new(
+                err: std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "Executable path has no parent directory",
                 ),
@@ -30,7 +30,7 @@ pub async fn enter(ulid: ulid::Ulid) -> Result<()> {
         .env("PATH", new_path)
         .status()
         .await
-        .map_err(|e| NutError::ShellSpawnFailed { source: e })?;
+        .map_err(|e| NutError::ShellSpawnFailed { err: e })?;
 
     Ok(())
 }
@@ -40,7 +40,7 @@ pub async fn get_entered_workspace() -> Result<ulid::Ulid> {
     let data_local_dir = get_data_local_dir().await?;
     let current_dir = std::env::current_dir()
         .and_then(|d| d.canonicalize())
-        .map_err(|e| NutError::GetCurrentDirectoryFailed { source: e })?;
+        .map_err(|e| NutError::GetCurrentDirectoryFailed { err: e })?;
 
     if let Ok(stripped) = current_dir.strip_prefix(&data_local_dir) {
         let components: Vec<&std::ffi::OsStr> =

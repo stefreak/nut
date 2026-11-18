@@ -47,7 +47,7 @@ impl<'a> GitCommand<'a> {
             .await
             .map_err(|e| NutError::GitCommandFailed {
                 command: format!("git {}", self.args.join(" ")),
-                source: e,
+                err: e,
             })?;
         Ok(output)
     }
@@ -60,7 +60,7 @@ impl<'a> GitCommand<'a> {
             .await
             .map_err(|e| NutError::GitCommandFailed {
                 command: format!("git {}", self.args.join(" ")),
-                source: e,
+                err: e,
             })?;
 
         if !status.success() {
@@ -137,7 +137,7 @@ async fn ensure_cache_repo(
         tokio::fs::create_dir_all(cache_dir).await.map_err(|e| {
             NutError::CreateDirectoryFailed {
                 path: cache_dir.to_path_buf(),
-                source: e,
+                err: e,
             }
         })?;
         GitCommand::new(cache_dir)
@@ -406,14 +406,14 @@ pub async fn apply_command(workspace_dir: &Path, command: Vec<&OsStr>) -> Result
             .await
             .map_err(|e| NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
-                source: e,
+                err: e,
             })?;
 
         if !status.success() {
             // render the error using miette
             let error: miette::Result<()> = Err(NutError::CommandFailed {
                 repo: repo_path_relative.display().to_string(),
-                source: std::io::Error::other(if let Some(code) = status.code() {
+                err: std::io::Error::other(if let Some(code) = status.code() {
                     format!("Command exited with status code {}", code)
                 } else if let Some(signal) = status.signal() {
                     format!("Command terminated by signal {}", signal)
